@@ -155,4 +155,21 @@ def docker_stop_cmd(name: str):
 
     print(f"{name} stopped")
 
+def app_list_cmd():
 
+    apps_dir = Path("/opt/panel/apps")
+
+    for app in apps_dir.iterdir():
+
+        metadata_file = app / "metadata.json"
+
+        if metadata_file.exists():
+
+            with open(metadata_file) as f:
+                metadata = json.load(f)
+
+            print(
+                f"{metadata['name']} - "
+                f"{metadata['type']} - "
+                f"{metadata['port']}"
+            )
