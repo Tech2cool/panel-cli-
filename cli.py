@@ -10,6 +10,7 @@ from nginx_manager import (
 )
 
 from docker_manager import (
+    app_list_cmd,
     docker_create_cmd,
     docker_list_cmd,
     docker_logs_cmd,
@@ -37,6 +38,9 @@ def site_create(
 def site_list():
     site_list_cmd()
 
+@app.command()
+def app_list():
+    app_list_cmd()
 
 @app.command()
 def site_disable(domain: str):
