@@ -26,10 +26,10 @@ def docker_list_cmd():
 def docker_create_cmd(name, domain, port, type, repo, start):
 
     app_dir = f"/opt/panel/apps/{name}"
-
     html_dir = f"{app_dir}/html"
-
     node_app_dir = f"{app_dir}/app"
+    env_path = f"{app_dir}/.env"
+    env_content = f"PORT=3000\n"
 
     #
     # CREATE APP ROOT
@@ -78,6 +78,15 @@ def docker_create_cmd(name, domain, port, type, repo, start):
     #
 
     if type == "node":
+        with open(".env", "w") as f:
+            f.write(env_content)
+
+        run_command([
+            "sudo",
+            "cp",
+            ".env",
+            env_path
+        ])
 
         run_command([
             "sudo",
