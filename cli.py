@@ -1,5 +1,6 @@
 #!/home/ubuntu/panel/venv/bin/python
 
+from ssl_manager import ssl_enable_cmd
 import typer
 from nginx_manager import (
     site_create_cmd,
@@ -91,7 +92,12 @@ def app_create(
     port: int
 ):
     app_create_cmd(name, domain, port)
-    
+
+
+@app.command()
+def ssl_enable(domain: str):
+    ssl_enable_cmd(domain)
+
 if __name__ == "__main__":
     app()
 
