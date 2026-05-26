@@ -59,8 +59,10 @@ def site_delete(domain: str):
 
 
 @app.command()
-def docker_create(name: str, port: int):
-    docker_create_cmd(name, port)
+def docker_create(name: str,
+    domain: str,
+    port: int):
+    docker_create_cmd(name,domain, port)
 
 def docker_list():
     docker_list_cmd()

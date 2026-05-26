@@ -17,7 +17,8 @@ def docker_list_cmd():
 
     print(result.stdout)
 
-def docker_create_cmd(name: str, port: int):
+
+def docker_create_cmd(name, domain, port):
 
     app_dir = f"/opt/panel/apps/{name}"
 
@@ -43,6 +44,7 @@ def docker_create_cmd(name: str, port: int):
 
     metadata = {
         "name": name,
+        "domain": domain,
         "port": port,
         "type": "docker"
     }
@@ -60,8 +62,6 @@ def docker_create_cmd(name: str, port: int):
     with open("docker-compose.yml", "w") as f:
         f.write(compose)
 
-
-
     run_command([
         "sudo",
         "cp",
@@ -69,26 +69,29 @@ def docker_create_cmd(name: str, port: int):
         f"{app_dir}/docker-compose.yml"
     ])
 
-    result = run_command(
-        [
-            "sudo",
-            "docker",
-            "compose",
-            "-f",
-            f"{app_dir}/docker-compose.yml",
-            "up",
-            "-d"
-        ]
-    )
+    result = run_command([
+        "sudo",
+        DOCKER_BIN,
+        "compose",
+        "-f",
+        f"{app_dir}/docker-compose.yml",
+        "up",
+        "-d"
+    ])
 
-    print(result.stdout)
-    print(result.stderr)
+    if result.stdout:
+        print(result.stdout)
+
+    if result.stderr:
+        print(result.stderr)
 
     if result.returncode != 0:
         print("Docker deployment failed")
-        return
+        return False
 
     print(f"{name} deployed!")
+
+    return True
 
 def docker_list_cmd():
 
@@ -158,6 +161,42 @@ def docker_stop_cmd(name: str):
 
     print(f"{name} stopped")
 
+def docker_delete_cmd(name):
+
+    app_dir = Path(f"/opt/panel/apps/{name}")
+
+    compose_file = app_dir / "docker-compose.yml"
+
+    if not compose_file.exists():
+        print("Compose file missing")
+        return False
+
+    result = run_command([
+        "sudo",
+        DOCKER_BIN,
+        "compose",
+        "-f",
+        str(compose_file),
+        "down"
+    ])
+
+    if result.stdout:
+        print(result.stdout)
+
+    if result.stderr:
+        print(result.stderr)
+
+    if result.returncode != 0:
+        print("Docker cleanup failed")
+        return False
+
+    shutil.rmtree(app_dir)
+
+    print(f"{name} removed")
+
+    return True
+
+
 def app_list_cmd():
 
     apps_dir = Path("/opt/panel/apps")
@@ -176,7 +215,6 @@ def app_list_cmd():
                 f"{metadata['type']} - "
                 f"{metadata['port']}"
             )
-
 
 def app_delete_cmd(name):
 
@@ -223,16 +261,34 @@ def app_delete_cmd(name):
 
     print(f"{name} deleted")
 
-
-
 def app_create_cmd(name, domain, port):
 
-    docker_create_cmd(name, port)
+    docker_ok = docker_create_cmd(
+        name=name,
+        domain=domain,
+        port=port
+    )
 
-    site_create_cmd(
+    if not docker_ok:
+        print("App deployment failed")
+        return False
+
+    nginx_ok = site_create_cmd(
         domain=domain,
         type="proxy",
         port=port
     )
 
+    if not nginx_ok:
+
+        print("Nginx failed")
+        print("Rolling back deployment...")
+
+        docker_delete_cmd(name)
+
+        return False
+
     print(f"{name} fully deployed")
+
+    return True
+

@@ -6,11 +6,8 @@ from jinja2 import Template
 
 
 
-def site_create_cmd(
-    domain: str,
-    type: str = typer.Option(...),
-    port: int = typer.Option(None)
-):
+
+def site_create_cmd(domain, type, port):
 
     template_file = f"{type}.conf"
 
@@ -22,7 +19,7 @@ def site_create_cmd(
 
     if not template_path.exists():
         print("Invalid site type")
-        raise typer.Exit()
+        return False
 
     with open(template_path) as f:
         template = Template(f.read())
@@ -30,7 +27,7 @@ def site_create_cmd(
     config = template.render(
         DOMAIN=domain,
         PORT=port
- )
+    )
 
     with open("temp.conf", "w") as f:
         f.write(config)
@@ -52,25 +49,36 @@ def site_create_cmd(
         f"{NGINX_ENABLED}/{domain}.conf"
     ])
 
-    result = run_command(
-        ["sudo", "nginx", "-t"]
-    )
+    result = run_command([
+        "sudo",
+        "nginx",
+        "-t"
+    ])
 
-    print(result.stdout)
-    print(result.stderr)
+    if result.stdout:
+        print(result.stdout)
+
+    if result.stderr:
+        print(result.stderr)
 
     if result.returncode != 0:
         print("Nginx config invalid")
-        return
+        return False
 
-    run_command([
+    reload_result = run_command([
         "sudo",
         "systemctl",
         "reload",
         "nginx"
     ])
 
+    if reload_result.returncode != 0:
+        print("Nginx reload failed")
+        return False
+
     print(f"{domain} created!")
+
+    return True
 
 def site_list_cmd():
     path = Path(NGINX_AVAILABLE)
