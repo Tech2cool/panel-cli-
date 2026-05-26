@@ -6,7 +6,8 @@ services:
 
     working_dir: /app
 
-    command: node server.js
+    # command: node server.js
+    command: sh -c "{{START}}"
 
     environment:
       - PORT=3000

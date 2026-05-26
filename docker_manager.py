@@ -19,13 +19,17 @@ def docker_list_cmd():
     info(result.stdout)
 
 
-def docker_create_cmd(name, domain, port, type, repo):
+def docker_create_cmd(name, domain, port, type, repo, start):
 
     app_dir = f"/opt/panel/apps/{name}"
 
     html_dir = f"{app_dir}/html"
 
     node_app_dir = f"{app_dir}/app"
+
+    #
+    # CREATE APP ROOT
+    #
 
     run_command([
         "sudo",
@@ -87,12 +91,13 @@ def docker_create_cmd(name, domain, port, type, repo):
             if result.stdout:
                 info(result.stdout)
 
-            if result.stderr:
+            if result.stderr and result.returncode != 0:
                 error(result.stderr)
 
             if result.returncode != 0:
                 error("Git clone failed")
                 return False
+
             #
             # INSTALL NODE DEPENDENCIES
             #
@@ -110,11 +115,11 @@ def docker_create_cmd(name, domain, port, type, repo):
                 "npm",
                 "install"
             ])
-            
+
             if npm_result.stdout:
                 info(npm_result.stdout)
 
-            if npm_result.stderr:
+            if npm_result.stderr and npm_result.returncode != 0:
                 error(npm_result.stderr)
 
             if npm_result.returncode != 0:
@@ -168,7 +173,8 @@ server.listen(PORT, () => {
 
     compose = template.render(
         NAME=name,
-        PORT=port
+        PORT=port,
+        START=start
     )
 
     #
@@ -180,7 +186,8 @@ server.listen(PORT, () => {
         "domain": domain,
         "port": port,
         "runtime": type,
-        "repo": repo
+        "repo": repo,
+        "start": start
     }
 
     with open("metadata.json", "w") as f:
@@ -224,7 +231,7 @@ server.listen(PORT, () => {
     if result.stdout:
         info(result.stdout)
 
-    if result.stderr:
+    if result.stderr and result.returncode != 0:
         error(result.stderr)
 
     if result.returncode != 0:
@@ -431,14 +438,15 @@ def app_delete_cmd(name):
 
 # 
 
-def app_create_cmd(name, domain, port, type,repo):
+def app_create_cmd(name, domain, port, type,repo,start):
 
     docker_ok = docker_create_cmd(
         name=name,
         domain=domain,
         port=port,
         type=type,
-        repo=repo
+        repo=repo,
+        start=start,
     )
 
     if not docker_ok:
