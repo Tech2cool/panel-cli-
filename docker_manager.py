@@ -2,7 +2,7 @@ from logger import error, info, success
 from pathlib import Path
 import shutil
 from constants import DOCKER_BIN
-from helpers import run_command
+from helpers import run_command,write_log
 from jinja2 import Template
 import json
 import time
@@ -91,6 +91,11 @@ def docker_create_cmd(name, domain, port, type, repo, start):
 
             if result.stdout:
                 info(result.stdout)
+                write_log(
+                    app_dir,
+                    "deploy.log",
+                    result.stdout
+                )
 
             if result.stderr and result.returncode != 0:
                 error(result.stderr)
@@ -119,6 +124,11 @@ def docker_create_cmd(name, domain, port, type, repo, start):
 
             if npm_result.stdout:
                 info(npm_result.stdout)
+                write_log(
+                    app_dir,
+                    "build.log",
+                    npm_result.stdout
+                )
 
             if npm_result.stderr and npm_result.returncode != 0:
                 error(npm_result.stderr)
@@ -231,6 +241,11 @@ server.listen(PORT, () => {
 
     if result.stdout:
         info(result.stdout)
+        write_log(
+            app_dir,
+            "deploy.log",
+            result.stdout
+        )
 
     if result.stderr and result.returncode != 0:
         error(result.stderr)
