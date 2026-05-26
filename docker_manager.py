@@ -474,11 +474,45 @@ def app_create_cmd(name, domain, port, type,repo,start):
         docker_delete_cmd(name)
 
         return False
+    #
+    # WAIT FOR APP STARTUP
+    #
 
-    info(f"{name} fully deployed")
+    info("Waiting for app health...")
 
+    health_ok = False
+
+    for _ in range(10):
+
+        health_result = run_command([
+            "curl",
+            "-I",
+            f"http://127.0.0.1:{port}"
+        ])
+
+        if health_result.returncode == 0:
+            health_ok = True
+            break
+
+        time.sleep(1)
+        #
+        # VERIFY HEALTH
+        #
+
+        if not health_ok:
+            error("Health check failed")
+            error("Rolling back deployment...")
+
+            app_delete_cmd(name)
+
+            return False
+
+        #
+        # SUCCESS
+        #
+
+    info(f"{name} fully deployed and healthy")
     return True
-
 
 def app_redeploy_cmd(name):
 
