@@ -62,17 +62,19 @@ def docker_create_cmd(name, domain, port, type):
 
         with open("server.js", "w") as f:
             f.write(
-                f"""
-    const http = require('http');
+        """const http = require('http');
 
-    const server = http.createServer((req, res) => {{
-        res.end('{name} works!');
-    }});
+        const PORT = process.env.PORT || 3000;
 
-    server.listen(3000);
-    """
+        const server = http.createServer((req, res) => {
+            res.end('API works!');
+        });
+
+        server.listen(PORT, () => {
+            console.log(`Server running on ${PORT}`);
+        });
+        """
             )
-
         run_command([
             "sudo",
             "cp",
