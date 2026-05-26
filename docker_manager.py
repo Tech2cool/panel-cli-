@@ -99,6 +99,11 @@ def docker_create_cmd(name, domain, port, type, repo, start):
 
             if result.stderr and result.returncode != 0:
                 error(result.stderr)
+                write_log(
+                    app_dir,
+                    "deploy.log",
+                    result.stderr
+                )
 
             if result.returncode != 0:
                 error("Git clone failed")
@@ -132,6 +137,11 @@ def docker_create_cmd(name, domain, port, type, repo, start):
 
             if npm_result.stderr and npm_result.returncode != 0:
                 error(npm_result.stderr)
+                write_log(
+                    app_dir,
+                    "build.log",
+                    npm_result.stderr
+                )
 
             if npm_result.returncode != 0:
                 error("npm install failed")
@@ -249,6 +259,11 @@ server.listen(PORT, () => {
 
     if result.stderr and result.returncode != 0:
         error(result.stderr)
+        write_log(
+            app_dir,
+            "deploy.log",
+            result.stderr
+        )
 
     if result.returncode != 0:
         error("Docker deployment failed")
