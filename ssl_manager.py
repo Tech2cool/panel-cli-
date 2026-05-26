@@ -19,13 +19,13 @@ def ssl_enable_cmd(domain):
     if result.stdout:
         info(result.stdout)
 
-    if result.stderr:
+    if result.stderr and result.returncode != 0:
         error(result.stderr)
 
     if result.returncode != 0:
         error("SSL setup failed")
         return False
 
-    success(f"SSL enabled for {domain}")
+    info(f"SSL enabled for {domain}")
 
     return True

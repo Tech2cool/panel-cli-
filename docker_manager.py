@@ -543,7 +543,7 @@ def app_create_cmd(name, domain, port, type,repo,start):
 
         health_result = run_command([
             "curl",
-            "-I",
+            "-f",
             f"http://127.0.0.1:{port}"
         ])
 
