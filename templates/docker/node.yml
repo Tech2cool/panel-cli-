@@ -6,11 +6,10 @@ services:
 
     working_dir: /app
 
-    # command: node server.js
     command: sh -c "{{START}}"
 
-    environment:
-      - PORT=3000
+    env_file:
+      - /opt/panel/apps/{{NAME}}/.env
 
     volumes:
       - /opt/panel/apps/{{NAME}}/app:/app
