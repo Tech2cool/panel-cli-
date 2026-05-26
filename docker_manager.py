@@ -19,8 +19,8 @@ def docker_list_cmd():
     info(result.stdout)
 
 
-def docker_create_cmd(name, domain, port):
-
+def docker_create_cmd(name, domain, port, type):
+    
     app_dir = f"/opt/panel/apps/{name}"
 
     run_command([
@@ -32,7 +32,7 @@ def docker_create_cmd(name, domain, port):
 
     template_path = (
         Path.home()
-        / "panel/templates/docker/node-compose.yml"
+        / f"panel/templates/docker/{type}.yml"
     )
 
     with open(template_path) as f:
@@ -290,12 +290,13 @@ def app_delete_cmd(name):
 
 # 
 
-def app_create_cmd(name, domain, port):
+def app_create_cmd(name, domain, port, type):
 
     docker_ok = docker_create_cmd(
         name=name,
         domain=domain,
-        port=port
+        port=port,
+        type=type
     )
 
     if not docker_ok:

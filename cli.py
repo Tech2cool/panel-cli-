@@ -62,8 +62,10 @@ def site_delete(domain: str):
 @app.command()
 def docker_create(name: str,
     domain: str,
-    port: int):
-    docker_create_cmd(name,domain, port)
+    port: int,
+    type: str = typer.Option(...)
+    ):
+    docker_create_cmd(name,domain, port,type)
 
 def docker_list():
     docker_list_cmd()
@@ -89,9 +91,10 @@ def app_delete(name: str):
 def app_create(
     name: str,
     domain: str,
-    port: int
+    port: int,
+    type: str = typer.Option("node")
 ):
-    app_create_cmd(name, domain, port)
+    app_create_cmd(name, domain, port,type)
 
 
 @app.command()
