@@ -930,3 +930,80 @@ def db_create_cmd(name, port):
     info(f"Password: {db_pass}")
 
     return True
+
+def app_link_db_cmd(app_name, db_name):
+
+    app_dir = Path(f"/opt/panel/apps/{app_name}")
+
+    db_dir = Path(f"/opt/panel/databases/{db_name}")
+
+    app_env = app_dir / ".env"
+
+    db_metadata_file = db_dir / "metadata.json"
+
+    #
+    # VALIDATE APP
+    #
+
+    if not app_dir.exists():
+        error("App not found")
+        return False
+
+    #
+    # VALIDATE DATABASE
+    #
+
+    if not db_metadata_file.exists():
+        error("Database not found")
+        return False
+
+    #
+    # LOAD DATABASE METADATA
+    #
+
+    with open(db_metadata_file) as f:
+        db_metadata = json.load(f)
+
+    db_user = db_metadata["user"]
+
+    db_pass = db_metadata["password"]
+
+    db_database = db_metadata["database"]
+
+    db_port = db_metadata["port"]
+
+    #
+    # BUILD DATABASE URL
+    #
+
+    database_url = (
+        f"postgres://"
+        f"{db_user}:"
+        f"{db_pass}"
+        f"@host.docker.internal:"
+        f"{db_port}/"
+        f"{db_database}"
+    )
+
+    #
+    # APPEND TO ENV FILE
+    #
+
+    with open(app_env, "a") as f:
+        f.write(
+            f"\nDATABASE_URL={database_url}\n"
+        )
+
+    #
+    # REDEPLOY APP
+    #
+
+    redeploy_ok = app_redeploy_cmd(app_name)
+
+    if not redeploy_ok:
+        error("Failed redeploying app")
+        return False
+
+    info(f"Database {db_name} linked to {app_name}")
+
+    return True

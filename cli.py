@@ -13,6 +13,7 @@ from nginx_manager import (
 from docker_manager import (
     app_create_cmd,
     app_delete_cmd,
+    app_link_db_cmd,
     app_list_cmd,
     app_logs_cmd,
     app_redeploy_cmd,
@@ -135,6 +136,13 @@ def volume_create(name: str):
 @app.command()
 def db_create(name: str, port: int):
     db_create_cmd(name, port)
+
+
+
+@app.command()
+def app_link_db(app_name: str, db_name: str):
+    app_link_db_cmd(app_name, db_name)
+
 
 if __name__ == "__main__":
     app()
