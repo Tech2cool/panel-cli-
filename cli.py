@@ -92,9 +92,10 @@ def app_create(
     name: str,
     domain: str,
     port: int,
-    type: str = typer.Option("node")
+    type: str = typer.Option("node"),
+    repo: str = typer.Option(None)
 ):
-    app_create_cmd(name, domain, port,type)
+    app_create_cmd(name, domain, port,type, repo)
 
 
 @app.command()

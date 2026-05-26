@@ -19,10 +19,12 @@ def docker_list_cmd():
     info(result.stdout)
 
 
-def docker_create_cmd(name, domain, port, type):
-    
+def docker_create_cmd(name, domain, port, type, repo):
+
     app_dir = f"/opt/panel/apps/{name}"
+
     html_dir = f"{app_dir}/html"
+
     node_app_dir = f"{app_dir}/app"
 
     run_command([
@@ -31,6 +33,10 @@ def docker_create_cmd(name, domain, port, type):
         "-p",
         app_dir
     ])
+
+    #
+    # STATIC RUNTIME
+    #
 
     if type == "static":
 
@@ -51,6 +57,10 @@ def docker_create_cmd(name, domain, port, type):
             f"{html_dir}/index.html"
         ])
 
+    #
+    # NODE RUNTIME
+    #
+
     if type == "node":
 
         run_command([
@@ -60,32 +70,71 @@ def docker_create_cmd(name, domain, port, type):
             node_app_dir
         ])
 
-        with open("server.js", "w") as f:
-            f.write(
-        """const http = require('http');
+        #
+        # GIT DEPLOY
+        #
 
-        const PORT = process.env.PORT || 3000;
+        if repo:
 
-        const server = http.createServer((req, res) => {
-            res.end('API works!');
-        });
+            result = run_command([
+                "sudo",
+                "git",
+                "clone",
+                repo,
+                node_app_dir
+            ])
 
-        server.listen(PORT, () => {
-            console.log(`Server running on ${PORT}`);
-        });
-        """
-            )
-        run_command([
-            "sudo",
-            "cp",
-            "server.js",
-            f"{node_app_dir}/server.js"
-        ])
+            if result.stdout:
+                info(result.stdout)
+
+            if result.stderr:
+                error(result.stderr)
+
+            if result.returncode != 0:
+                error("Git clone failed")
+                return False
+
+        #
+        # STARTER APP
+        #
+
+        else:
+
+            with open("server.js", "w") as f:
+                f.write(
+"""const http = require('http');
+
+const PORT = process.env.PORT || 3000;
+
+const server = http.createServer((req, res) => {
+    res.end('API works!');
+});
+
+server.listen(PORT, () => {
+    console.log(`Server running on ${PORT}`);
+});
+"""
+                )
+
+            run_command([
+                "sudo",
+                "cp",
+                "server.js",
+                f"{node_app_dir}/server.js"
+            ])
+
+    #
+    # LOAD COMPOSE TEMPLATE
+    #
 
     template_path = (
         Path.home()
         / f"panel/templates/docker/{type}.yml"
     )
+
+    if not template_path.exists():
+        error("Runtime template not found")
+        return False
 
     with open(template_path) as f:
         template = Template(f.read())
@@ -95,11 +144,16 @@ def docker_create_cmd(name, domain, port, type):
         PORT=port
     )
 
+    #
+    # METADATA
+    #
+
     metadata = {
         "name": name,
         "domain": domain,
         "port": port,
-        "type": "docker"
+        "runtime": type,
+        "repo": repo
     }
 
     with open("metadata.json", "w") as f:
@@ -112,6 +166,10 @@ def docker_create_cmd(name, domain, port, type):
         f"{app_dir}/metadata.json"
     ])
 
+    #
+    # DOCKER COMPOSE
+    #
+
     with open("docker-compose.yml", "w") as f:
         f.write(compose)
 
@@ -121,6 +179,10 @@ def docker_create_cmd(name, domain, port, type):
         "docker-compose.yml",
         f"{app_dir}/docker-compose.yml"
     ])
+
+    #
+    # DEPLOY
+    #
 
     result = run_command([
         "sudo",
@@ -342,13 +404,14 @@ def app_delete_cmd(name):
 
 # 
 
-def app_create_cmd(name, domain, port, type):
+def app_create_cmd(name, domain, port, type,repo):
 
     docker_ok = docker_create_cmd(
         name=name,
         domain=domain,
         port=port,
-        type=type
+        type=type,
+        repo=repo
     )
 
     if not docker_ok:
