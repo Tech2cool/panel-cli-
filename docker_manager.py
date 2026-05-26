@@ -724,3 +724,13 @@ def app_logs_cmd(name):
             print(f.read())
 
     return True
+
+
+def runtime_logs_cmd(name):
+    run_command([
+        "sudo",
+        DOCKER_BIN,
+        "logs",
+        "-f",
+        name
+    ])

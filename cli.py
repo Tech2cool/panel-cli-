@@ -20,7 +20,8 @@ from docker_manager import (
     docker_list_cmd,
     docker_logs_cmd,
     docker_restart_cmd,
-    docker_stop_cmd
+    docker_stop_cmd,
+    runtime_logs_cmd
 )
 
 app = typer.Typer()
@@ -113,6 +114,11 @@ def ssl_enable(domain: str):
 def app_logs(name: str):
     app_logs_cmd(name)
     
+
+@app.command()
+def runtime_logs(name: str):
+    runtime_logs_cmd(name)
+
 if __name__ == "__main__":
     app()
 
