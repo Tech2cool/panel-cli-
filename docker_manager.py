@@ -1,4 +1,4 @@
-from logger import error, info
+from logger import error, info, success
 from pathlib import Path
 import shutil
 from constants import DOCKER_BIN
@@ -168,32 +168,43 @@ def docker_delete_cmd(name):
 
     compose_file = app_dir / "docker-compose.yml"
 
-    if not compose_file.exists():
-        error("Compose file missing")
+    if not app_dir.exists():
+        error("App directory not found")
         return False
 
-    result = run_command([
+    if compose_file.exists():
+
+        result = run_command([
+            "sudo",
+            DOCKER_BIN,
+            "compose",
+            "-f",
+            str(compose_file),
+            "down"
+        ])
+
+        if result.stdout:
+            print(result.stdout)
+
+        if result.stderr:
+            print(result.stderr)
+
+        if result.returncode != 0:
+            error("Docker cleanup failed")
+            return False
+
+    delete_result = run_command([
         "sudo",
-        DOCKER_BIN,
-        "compose",
-        "-f",
-        str(compose_file),
-        "down"
+        "rm",
+        "-rf",
+        str(app_dir)
     ])
 
-    if result.stdout:
-        error(result.stdout)
-
-    if result.stderr:
-        error(result.stderr)
-
-    if result.returncode != 0:
-        error("Docker cleanup failed")
+    if delete_result.returncode != 0:
+        error("Failed to remove app directory")
         return False
 
-    shutil.rmtree(app_dir)
-
-    info(f"{name} removed")
+    success(f"{name} removed")
 
     return True
 
@@ -201,6 +212,9 @@ def docker_delete_cmd(name):
 def app_list_cmd():
 
     apps_dir = Path("/opt/panel/apps")
+
+    if not apps_dir.exists():
+        return
 
     for app in apps_dir.iterdir():
 
@@ -216,6 +230,7 @@ def app_list_cmd():
                 f"{metadata['type']} - "
                 f"{metadata['port']}"
             )
+            
 
 def app_delete_cmd(name):
 
