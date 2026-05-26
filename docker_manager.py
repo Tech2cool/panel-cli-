@@ -1,3 +1,5 @@
+import subprocess
+
 from logger import error, info, success
 from pathlib import Path
 import shutil
@@ -727,7 +729,8 @@ def app_logs_cmd(name):
 
 
 def runtime_logs_cmd(name):
-    run_command([
+
+    subprocess.run([
         "sudo",
         DOCKER_BIN,
         "logs",
