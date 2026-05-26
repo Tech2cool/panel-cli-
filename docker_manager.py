@@ -39,6 +39,14 @@ def docker_create_cmd(name, domain, port, type, repo, start):
         app_dir
     ])
 
+    run_command([
+        "sudo",
+        "chown",
+        "-R",
+        "ubuntu:ubuntu",
+        app_dir
+    ])
+
     #
     # STATIC RUNTIME
     #
