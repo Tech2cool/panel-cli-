@@ -230,7 +230,7 @@ def app_list_cmd():
                 f"{metadata['type']} - "
                 f"{metadata['port']}"
             )
-            
+
 
 def app_delete_cmd(name):
 
@@ -273,9 +273,22 @@ def app_delete_cmd(name):
     if domain:
         site_delete_cmd(domain)
 
-    shutil.rmtree(app_dir)
+    delete_result = run_command([
+        "sudo",
+        "rm",
+        "-rf",
+        str(app_dir)
+    ])
+
+    if delete_result.returncode != 0:
+        error("Failed to remove app directory")
+        return False
 
     info(f"{name} deleted")
+
+    return True
+
+# 
 
 def app_create_cmd(name, domain, port):
 
