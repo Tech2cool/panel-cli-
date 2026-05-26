@@ -6,7 +6,7 @@ def run_command(cmd):
         cmd,
         capture_output=True,
         text=True,
-        timeout=30
+        timeout=300
     )
 
     return result

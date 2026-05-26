@@ -93,9 +93,10 @@ def app_create(
     domain: str,
     port: int,
     type: str = typer.Option("node"),
-    repo: str = typer.Option(None)
+    repo: str = typer.Option(None),
+    start: str = typer.Option("node server.js")
 ):
-    app_create_cmd(name, domain, port,type, repo)
+    app_create_cmd(name, domain, port,type, repo,start)
 
 
 @app.command()
