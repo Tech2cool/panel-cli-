@@ -5,7 +5,7 @@ from helpers import run_command
 from jinja2 import Template
 import json
 
-from nginx_manager import site_delete_cmd
+from nginx_manager import site_create_cmd, site_delete_cmd
 
 def docker_list_cmd():
 
@@ -222,3 +222,17 @@ def app_delete_cmd(name):
     shutil.rmtree(app_dir)
 
     print(f"{name} deleted")
+
+
+
+def app_create_cmd(name, domain, port):
+
+    docker_create_cmd(name, port)
+
+    site_create_cmd(
+        domain=domain,
+        type="proxy",
+        port=port
+    )
+
+    print(f"{name} fully deployed")
