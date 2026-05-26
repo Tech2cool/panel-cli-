@@ -1,17 +1,46 @@
-from fastapi import FastAPI
-
+from fastapi import (
+    FastAPI,
+    Header,
+    HTTPException
+)
+import os
+from dotenv import load_dotenv
 from docker_manager import *
 from nginx_manager import *
 from ssl_manager import ssl_enable_cmd
 
+load_dotenv()
+
+API_KEY = os.getenv("API_KEY")
+
 app = FastAPI()
 
+def verify_api_key(authorization: str = Header(None)):
+
+    if not authorization:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing authorization header"
+        )
+
+    expected = f"Bearer {API_KEY}"
+
+    if authorization != expected:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid API key"
+        )
 #
 # ROOT
 #
 
+
 @app.get("/")
-def root():
+def root(
+    authorization: str = Header(None)
+):
+
+    verify_api_key(authorization)
 
     return {
         "message": "Panel API running"
@@ -22,8 +51,11 @@ def root():
 #
 
 @app.get("/apps")
-def list_apps():
+def list_apps(
+    authorization: str = Header(None)
+):
 
+    verify_api_key(authorization)
     apps = []
 
     apps_dir = Path("/opt/panel/apps")
@@ -54,8 +86,11 @@ def create_app(
     port: int,
     type: str = "node",
     repo: str = None,
-    start: str = "node server.js"
+    start: str = "node server.js",
+    authorization: str = Header(None)
+
 ):
+    verify_api_key(authorization)
 
     result = app_create_cmd(
         name,
@@ -75,7 +110,8 @@ def create_app(
 #
 
 @app.post("/apps/redeploy")
-def redeploy_app(name: str):
+def redeploy_app(name: str,  authorization: str = Header(None)):
+    verify_api_key(authorization)
 
     result = app_redeploy_cmd(name)
 
@@ -88,7 +124,8 @@ def redeploy_app(name: str):
 #
 
 @app.delete("/apps/delete")
-def delete_app(name: str):
+def delete_app(name: str,authorization: str = Header(None)):
+    verify_api_key(authorization)
 
     result = app_delete_cmd(name)
 
@@ -101,7 +138,8 @@ def delete_app(name: str):
 #
 
 @app.get("/apps/logs")
-def app_logs(name: str):
+def app_logs(name: str,authorization: str = Header(None)):
+    verify_api_key(authorization)
 
     app_dir = Path(f"/opt/panel/apps/{name}")
 
@@ -135,7 +173,8 @@ def app_logs(name: str):
 #
 
 @app.post("/db/create")
-def create_db(name: str, port: int):
+def create_db(name: str, port: int,authorization: str = Header(None)):
+    verify_api_key(authorization)
 
     result = db_create_cmd(name, port)
 
@@ -148,7 +187,8 @@ def create_db(name: str, port: int):
 #
 
 @app.post("/ssl/enable")
-def enable_ssl(domain: str):
+def enable_ssl(domain: str,authorization: str = Header(None)):
+    verify_api_key(authorization)
 
     result = ssl_enable_cmd(domain)
 
