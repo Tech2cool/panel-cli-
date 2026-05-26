@@ -1,3 +1,4 @@
+from logger import error, info
 from pathlib import Path
 import shutil
 from constants import DOCKER_BIN
@@ -15,7 +16,7 @@ def docker_list_cmd():
         "ps"
     ])
 
-    print(result.stdout)
+    info(result.stdout)
 
 
 def docker_create_cmd(name, domain, port):
@@ -80,16 +81,16 @@ def docker_create_cmd(name, domain, port):
     ])
 
     if result.stdout:
-        print(result.stdout)
+        error(result.stdout)
 
     if result.stderr:
-        print(result.stderr)
+        error(result.stderr)
 
     if result.returncode != 0:
-        print("Docker deployment failed")
+        error("Docker deployment failed")
         return False
 
-    print(f"{name} deployed!")
+    info(f"{name} deployed!")
 
     return True
 
@@ -105,7 +106,7 @@ def docker_list_cmd():
         ]
     )
 
-    print(result.stdout)
+    info(result.stdout)
 
 def docker_logs_cmd(name: str):
 
@@ -120,10 +121,10 @@ def docker_logs_cmd(name: str):
         ]
     )
 
-    print(result.stdout)
+    info(result.stdout)
 
     if result.stderr:
-        print(result.stderr)
+        error(result.stderr)
 
 def docker_restart_cmd(name: str):
 
@@ -137,11 +138,11 @@ def docker_restart_cmd(name: str):
     )
 
     if result.returncode != 0:
-        print("Restart failed")
-        print(result.stderr)
+        error("Restart failed")
+        error(result.stderr)
         return
 
-    print(f"{name} restarted")
+    info(f"{name} restarted")
 
 def docker_stop_cmd(name: str):
 
@@ -155,11 +156,11 @@ def docker_stop_cmd(name: str):
     )
 
     if result.returncode != 0:
-        print("Stop failed")
-        print(result.stderr)
+        error("Stop failed")
+        error(result.stderr)
         return
 
-    print(f"{name} stopped")
+    info(f"{name} stopped")
 
 def docker_delete_cmd(name):
 
@@ -168,7 +169,7 @@ def docker_delete_cmd(name):
     compose_file = app_dir / "docker-compose.yml"
 
     if not compose_file.exists():
-        print("Compose file missing")
+        error("Compose file missing")
         return False
 
     result = run_command([
@@ -181,18 +182,18 @@ def docker_delete_cmd(name):
     ])
 
     if result.stdout:
-        print(result.stdout)
+        error(result.stdout)
 
     if result.stderr:
-        print(result.stderr)
+        error(result.stderr)
 
     if result.returncode != 0:
-        print("Docker cleanup failed")
+        error("Docker cleanup failed")
         return False
 
     shutil.rmtree(app_dir)
 
-    print(f"{name} removed")
+    info(f"{name} removed")
 
     return True
 
@@ -210,7 +211,7 @@ def app_list_cmd():
             with open(metadata_file) as f:
                 metadata = json.load(f)
 
-            print(
+            info(
                 f"{metadata['name']} - "
                 f"{metadata['type']} - "
                 f"{metadata['port']}"
@@ -223,7 +224,7 @@ def app_delete_cmd(name):
     metadata_file = app_dir / "metadata.json"
 
     if not metadata_file.exists():
-        print("App not found")
+        error("App not found")
         return
 
     with open(metadata_file) as f:
@@ -245,13 +246,13 @@ def app_delete_cmd(name):
         ])
 
         if result.stdout:
-            print(result.stdout)
+            error(result.stdout)
 
         if result.stderr:
-            print(result.stderr)
+            error(result.stderr)
 
         if result.returncode != 0:
-            print("Docker cleanup failed")
+            error("Docker cleanup failed")
             return
 
     if domain:
@@ -259,7 +260,7 @@ def app_delete_cmd(name):
 
     shutil.rmtree(app_dir)
 
-    print(f"{name} deleted")
+    info(f"{name} deleted")
 
 def app_create_cmd(name, domain, port):
 
@@ -270,7 +271,7 @@ def app_create_cmd(name, domain, port):
     )
 
     if not docker_ok:
-        print("App deployment failed")
+        error("App deployment failed")
         return False
 
     nginx_ok = site_create_cmd(
@@ -281,14 +282,14 @@ def app_create_cmd(name, domain, port):
 
     if not nginx_ok:
 
-        print("Nginx failed")
-        print("Rolling back deployment...")
+        error("Nginx failed")
+        error("Rolling back deployment...")
 
         docker_delete_cmd(name)
 
         return False
 
-    print(f"{name} fully deployed")
+    info(f"{name} fully deployed")
 
     return True
 

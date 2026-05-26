@@ -1,6 +1,6 @@
 from constants import NGINX_AVAILABLE, NGINX_ENABLED
 from helpers import run_command
-import typer
+from logger import error, info
 from pathlib import Path
 from jinja2 import Template
 
@@ -18,7 +18,7 @@ def site_create_cmd(domain, type, port):
     )
 
     if not template_path.exists():
-        print("Invalid site type")
+        error("Invalid site type")
         return False
 
     with open(template_path) as f:
@@ -56,13 +56,13 @@ def site_create_cmd(domain, type, port):
     ])
 
     if result.stdout:
-        print(result.stdout)
+        error(result.stdout)
 
     if result.stderr:
-        print(result.stderr)
+        error(result.stderr)
 
     if result.returncode != 0:
-        print("Nginx config invalid")
+        error("Nginx config invalid")
         return False
 
     reload_result = run_command([
@@ -73,10 +73,10 @@ def site_create_cmd(domain, type, port):
     ])
 
     if reload_result.returncode != 0:
-        print("Nginx reload failed")
+        error("Nginx reload failed")
         return False
 
-    print(f"{domain} created!")
+    info(f"{domain} created!")
 
     return True
 
@@ -84,7 +84,7 @@ def site_list_cmd():
     path = Path(NGINX_AVAILABLE)
 
     for file in path.glob("*.conf"):
-        print(file.stem)
+        info(file.stem)
 
 def site_disable_cmd(domain: str):
 
@@ -101,11 +101,11 @@ def site_disable_cmd(domain: str):
         ["sudo", "nginx", "-t"]
     )
 
-    print(result.stdout)
-    print(result.stderr)
+    error(result.stdout)
+    error(result.stderr)
 
     if result.returncode != 0:
-        print("Nginx config invalid")
+        error("Nginx config invalid")
         return
 
     run_command([
@@ -115,7 +115,7 @@ def site_disable_cmd(domain: str):
         "nginx"
     ])
 
-    print(f"{domain} disabled")
+    info(f"{domain} disabled")
 
 
 def site_enable_cmd(domain: str):
@@ -135,11 +135,11 @@ def site_enable_cmd(domain: str):
         ["sudo", "nginx", "-t"]
     )
 
-    print(result.stdout)
-    print(result.stderr)
+    error(result.stdout)
+    error(result.stderr)
 
     if result.returncode != 0:
-        print("Nginx config invalid")
+        error("Nginx config invalid")
         return
 
     run_command([
@@ -149,7 +149,7 @@ def site_enable_cmd(domain: str):
         "nginx"
     ])
 
-    print(f"{domain} enabled")
+    info(f"{domain} enabled")
 
 
 def site_delete_cmd(domain: str):
@@ -175,11 +175,11 @@ def site_delete_cmd(domain: str):
         ["sudo", "nginx", "-t"]
     )
 
-    print(result.stdout)
-    print(result.stderr)
+    error(result.stdout)
+    error(result.stderr)
 
     if result.returncode != 0:
-        print("Nginx config invalid")
+        error("Nginx config invalid")
         return
 
     run_command([
@@ -189,4 +189,4 @@ def site_delete_cmd(domain: str):
         "nginx"
     ])
 
-    print(f"{domain} archived")
+    info(f"{domain} archived")
