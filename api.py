@@ -195,3 +195,37 @@ def enable_ssl(domain: str,authorization: str = Header(None)):
     return {
         "success": result
     }
+
+@app.post("/webhook/github")
+async def github_webhook(payload: dict):
+
+    repo_url = payload["repository"]["clone_url"]
+
+    apps_dir = Path("/opt/panel/apps")
+
+    for app_dir in apps_dir.iterdir():
+
+        metadata_file = app_dir / "metadata.json"
+
+        if metadata_file.exists():
+
+            with open(metadata_file) as f:
+                metadata = json.load(f)
+
+            app_repo = metadata.get("repo")
+
+            if app_repo == repo_url:
+
+                app_name = metadata["name"]
+
+                app_redeploy_cmd(app_name)
+
+                return {
+                    "success": True,
+                    "redeployed": app_name
+                }
+
+    return {
+        "success": False,
+        "message": "No matching app"
+    }

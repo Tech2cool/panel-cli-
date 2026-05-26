@@ -1,0 +1,27 @@
+sudo visudo
+-------
+ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/nginx, /bin/systemctl, /bin/cp, /bin/ln, /bin/rm, /bin/mv, /bin/mkdir, /bin/chown, /usr/bin/docker, /usr/bin/git, /usr/bin/certbot
+-------
+
+sudo nano /etc/systemd/system/panel-api.service
+-------------------------------------
+[Unit]
+Description=Panel API
+After=network.target
+
+[Service]
+User=ubuntu
+
+WorkingDirectory=/home/ubuntu/panel
+
+Environment="PATH=/home/ubuntu/panel/venv/bin"
+
+ExecStart=/home/ubuntu/panel/venv/bin/uvicorn api:app --host 0.0.0.0 --port 5000
+
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+-------------------------------
+sudo systemctl daemon-reload
