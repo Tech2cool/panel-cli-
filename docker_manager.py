@@ -93,6 +93,33 @@ def docker_create_cmd(name, domain, port, type, repo):
             if result.returncode != 0:
                 error("Git clone failed")
                 return False
+            #
+            # INSTALL NODE DEPENDENCIES
+            #
+
+            npm_result = run_command([
+                "sudo",
+                DOCKER_BIN,
+                "run",
+                "--rm",
+                "-v",
+                f"{node_app_dir}:/app",
+                "-w",
+                "/app",
+                "node:20-alpine",
+                "npm",
+                "install"
+            ])
+            
+            if npm_result.stdout:
+                info(npm_result.stdout)
+
+            if npm_result.stderr:
+                error(npm_result.stderr)
+
+            if npm_result.returncode != 0:
+                error("npm install failed")
+                return False
 
         #
         # STARTER APP
