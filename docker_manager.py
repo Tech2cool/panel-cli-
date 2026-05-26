@@ -375,7 +375,7 @@ def app_list_cmd():
 
             info(
                 f"{metadata['name']} - "
-                f"{metadata['type']} - "
+                f"{metadata['runtime']} - "
                 f"{metadata['port']}"
             )
 
