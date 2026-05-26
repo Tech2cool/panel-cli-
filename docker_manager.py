@@ -22,6 +22,7 @@ def docker_list_cmd():
 def docker_create_cmd(name, domain, port, type):
     
     app_dir = f"/opt/panel/apps/{name}"
+    html_dir = f"{app_dir}/html"
 
     run_command([
         "sudo",
@@ -29,6 +30,26 @@ def docker_create_cmd(name, domain, port, type):
         "-p",
         app_dir
     ])
+
+    if type == "static":
+        
+        run_command([
+            "sudo",
+            "mkdir",
+            "-p",
+            html_dir
+        ])
+
+        with open("index.html", "w") as f:
+            f.write(f"<h1>{name} works!</h1>")
+
+        run_command([
+            "sudo",
+            "cp",
+            "index.html",
+            f"{html_dir}/index.html"
+        ])
+
 
     template_path = (
         Path.home()
