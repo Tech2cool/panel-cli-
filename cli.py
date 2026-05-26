@@ -10,6 +10,7 @@ from nginx_manager import (
 )
 
 from docker_manager import (
+    app_delete_cmd,
     app_list_cmd,
     docker_create_cmd,
     docker_list_cmd,
@@ -75,6 +76,10 @@ def docker_restart(name: str):
 @app.command()
 def docker_stop(name: str):
     docker_stop_cmd(name)
+
+@app.command()
+def app_delete(name: str):
+    app_delete_cmd(name)
 
 
 if __name__ == "__main__":

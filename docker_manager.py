@@ -1,8 +1,11 @@
 from pathlib import Path
+import shutil
 from constants import DOCKER_BIN
 from helpers import run_command
 from jinja2 import Template
 import json
+
+from nginx_manager import site_delete_cmd
 
 def docker_list_cmd():
 
@@ -173,3 +176,49 @@ def app_list_cmd():
                 f"{metadata['type']} - "
                 f"{metadata['port']}"
             )
+
+
+def app_delete_cmd(name):
+
+    app_dir = Path(f"/opt/panel/apps/{name}")
+
+    metadata_file = app_dir / "metadata.json"
+
+    if not metadata_file.exists():
+        print("App not found")
+        return
+
+    with open(metadata_file) as f:
+        metadata = json.load(f)
+
+    domain = metadata.get("domain")
+
+    compose_file = app_dir / "docker-compose.yml"
+
+    if compose_file.exists():
+
+        result = run_command([
+            "sudo",
+            DOCKER_BIN,
+            "compose",
+            "-f",
+            str(compose_file),
+            "down"
+        ])
+
+        if result.stdout:
+            print(result.stdout)
+
+        if result.stderr:
+            print(result.stderr)
+
+        if result.returncode != 0:
+            print("Docker cleanup failed")
+            return
+
+    if domain:
+        site_delete_cmd(domain)
+
+    shutil.rmtree(app_dir)
+
+    print(f"{name} deleted")
