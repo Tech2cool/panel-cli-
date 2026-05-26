@@ -90,6 +90,13 @@ def docker_create_cmd(name, domain, port, type, repo, start):
 
         run_command([
             "sudo",
+            "chown",
+            "ubuntu:ubuntu",
+            env_path
+        ])
+
+        run_command([
+            "sudo",
             "mkdir",
             "-p",
             node_app_dir
