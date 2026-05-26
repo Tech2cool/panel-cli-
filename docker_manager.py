@@ -373,9 +373,15 @@ def app_list_cmd():
             with open(metadata_file) as f:
                 metadata = json.load(f)
 
+            runtime = (
+                metadata.get("runtime")
+                or metadata.get("type")
+                or "unknown"
+            )
+
             info(
                 f"{metadata['name']} - "
-                f"{metadata['runtime']} - "
+                f"{runtime} - "
                 f"{metadata['port']}"
             )
 
