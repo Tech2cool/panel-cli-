@@ -8,6 +8,7 @@ from helpers import run_command,write_log
 from jinja2 import Template
 import json
 import time
+import secrets
 
 from nginx_manager import site_create_cmd, site_delete_cmd
 
@@ -737,3 +738,186 @@ def runtime_logs_cmd(name):
         "-f",
         name
     ])
+
+
+def app_status_cmd(name):
+
+    result = run_command([
+        "sudo",
+        DOCKER_BIN,
+        "ps",
+        "-a",
+        "--filter",
+        f"name={name}"
+    ])
+
+    if result.stdout:
+        print(result.stdout)
+
+    if result.returncode != 0:
+        error("Failed fetching status")
+        return False
+
+    return True
+
+
+def volume_create_cmd(name):
+    volume_dir = f"/opt/panel/volumes/{name}"
+
+    run_command([
+        "sudo",
+        "mkdir",
+        "-p",
+        volume_dir
+    ])
+
+    run_command([
+        "sudo",
+        "chown",
+        "-R",
+        "ubuntu:ubuntu",
+        volume_dir
+    ])
+
+    info(f"Volume {name} created")
+
+
+
+def db_create_cmd(name, port):
+
+    db_dir = f"/opt/panel/databases/{name}"
+
+    volume_dir = f"/opt/panel/volumes/{name}"
+
+    #
+    # CREATE DIRECTORIES
+    #
+
+    run_command([
+        "sudo",
+        "mkdir",
+        "-p",
+        db_dir
+    ])
+
+    run_command([
+        "sudo",
+        "mkdir",
+        "-p",
+        volume_dir
+    ])
+
+    run_command([
+        "sudo",
+        "chown",
+        "-R",
+        "ubuntu:ubuntu",
+        db_dir
+    ])
+
+    run_command([
+        "sudo",
+        "chown",
+        "-R",
+        "ubuntu:ubuntu",
+        volume_dir
+    ])
+
+    #
+    # DATABASE CREDENTIALS
+    #
+
+    db_name = name
+
+    db_user = "panel"
+
+    db_pass = secrets.token_hex(16)
+
+    #
+    # LOAD TEMPLATE
+    #
+
+    template_path = (
+        Path.home()
+        / "panel/templates/docker/postgres.yml"
+    )
+
+    with open(template_path) as f:
+        template = Template(f.read())
+
+    compose = template.render(
+        NAME=name,
+        PORT=port,
+        DB_NAME=db_name,
+        DB_USER=db_user,
+        DB_PASS=db_pass
+    )
+
+    #
+    # SAVE COMPOSE
+    #
+
+    with open("docker-compose.yml", "w") as f:
+        f.write(compose)
+
+    run_command([
+        "sudo",
+        "cp",
+        "docker-compose.yml",
+        f"{db_dir}/docker-compose.yml"
+    ])
+
+    #
+    # METADATA
+    #
+
+    metadata = {
+        "name": name,
+        "type": "postgres",
+        "port": port,
+        "database": db_name,
+        "user": db_user,
+        "password": db_pass
+    }
+
+    with open("metadata.json", "w") as f:
+        json.dump(metadata, f, indent=4)
+
+    run_command([
+        "sudo",
+        "cp",
+        "metadata.json",
+        f"{db_dir}/metadata.json"
+    ])
+
+    #
+    # START DATABASE
+    #
+
+    result = run_command([
+        "sudo",
+        DOCKER_BIN,
+        "compose",
+        "-f",
+        f"{db_dir}/docker-compose.yml",
+        "up",
+        "-d"
+    ])
+
+    if result.stdout:
+        info(result.stdout)
+
+    if result.stderr and result.returncode != 0:
+        error(result.stderr)
+
+    if result.returncode != 0:
+        error("Database deployment failed")
+        return False
+
+    info(f"Database {name} created")
+
+    info(f"User: {db_user}")
+
+    info(f"Password: {db_pass}")
+
+    return True

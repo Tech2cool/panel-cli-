@@ -16,12 +16,15 @@ from docker_manager import (
     app_list_cmd,
     app_logs_cmd,
     app_redeploy_cmd,
+    app_status_cmd,
+    db_create_cmd,
     docker_create_cmd,
     docker_list_cmd,
     docker_logs_cmd,
     docker_restart_cmd,
     docker_stop_cmd,
-    runtime_logs_cmd
+    runtime_logs_cmd,
+    volume_create_cmd
 )
 
 app = typer.Typer()
@@ -119,6 +122,22 @@ def app_logs(name: str):
 def runtime_logs(name: str):
     runtime_logs_cmd(name)
 
+
+@app.command()
+def app_status(name: str):
+    app_status_cmd(name)
+
+@app.command()
+def volume_create(name: str):
+    volume_create_cmd(name)
+
+
+@app.command()
+def db_create(name: str, port: int):
+    db_create_cmd(name, port)
+
 if __name__ == "__main__":
     app()
+
+
 
