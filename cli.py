@@ -14,6 +14,7 @@ from docker_manager import (
     app_create_cmd,
     app_delete_cmd,
     app_list_cmd,
+    app_redeploy_cmd,
     docker_create_cmd,
     docker_list_cmd,
     docker_logs_cmd,
@@ -98,10 +99,14 @@ def app_create(
 ):
     app_create_cmd(name, domain, port,type, repo,start)
 
+@app.command()
+def app_redeploy(name: str):
+    app_redeploy_cmd(name)
 
 @app.command()
 def ssl_enable(domain: str):
     ssl_enable_cmd(domain)
+
 
 if __name__ == "__main__":
     app()

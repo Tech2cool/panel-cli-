@@ -472,3 +472,137 @@ def app_create_cmd(name, domain, port, type,repo,start):
 
     return True
 
+
+def app_redeploy_cmd(name):
+
+    app_dir = Path(f"/opt/panel/apps/{name}")
+
+    metadata_file = app_dir / "metadata.json"
+
+    compose_file = app_dir / "docker-compose.yml"
+
+    node_app_dir = app_dir / "app"
+
+    #
+    # VALIDATE APP
+    #
+
+    if not metadata_file.exists():
+        error("App not found")
+        return False
+
+    #
+    # LOAD METADATA
+    #
+
+    with open(metadata_file) as f:
+        metadata = json.load(f)
+
+    repo = metadata.get("repo")
+
+    runtime = metadata.get("runtime")
+
+    #
+    # STOP CURRENT CONTAINERS
+    #
+
+    down_result = run_command([
+        "sudo",
+        DOCKER_BIN,
+        "compose",
+        "-f",
+        str(compose_file),
+        "down"
+    ])
+
+    if down_result.stdout:
+        info(down_result.stdout)
+
+    if down_result.stderr and down_result.returncode != 0:
+        error(down_result.stderr)
+
+    if down_result.returncode != 0:
+        error("Failed stopping containers")
+        return False
+
+    #
+    # GIT PULL
+    #
+
+    if repo:
+
+        git_result = run_command([
+            "sudo",
+            "git",
+            "-C",
+            str(node_app_dir),
+            "pull"
+        ])
+
+        if git_result.stdout:
+            info(git_result.stdout)
+
+        if git_result.stderr and git_result.returncode != 0:
+            error(git_result.stderr)
+
+        if git_result.returncode != 0:
+            error("Git pull failed")
+            return False
+
+    #
+    # NODE DEPENDENCIES
+    #
+
+    if runtime == "node":
+
+        npm_result = run_command([
+            "sudo",
+            DOCKER_BIN,
+            "run",
+            "--rm",
+            "-v",
+            f"{node_app_dir}:/app",
+            "-w",
+            "/app",
+            "node:20-alpine",
+            "npm",
+            "install"
+        ])
+
+        if npm_result.stdout:
+            info(npm_result.stdout)
+
+        if npm_result.stderr and npm_result.returncode != 0:
+            error(npm_result.stderr)
+
+        if npm_result.returncode != 0:
+            error("npm install failed")
+            return False
+
+    #
+    # START CONTAINERS
+    #
+
+    up_result = run_command([
+        "sudo",
+        DOCKER_BIN,
+        "compose",
+        "-f",
+        str(compose_file),
+        "up",
+        "-d"
+    ])
+
+    if up_result.stdout:
+        info(up_result.stdout)
+
+    if up_result.stderr and up_result.returncode != 0:
+        error(up_result.stderr)
+
+    if up_result.returncode != 0:
+        error("Redeploy failed")
+        return False
+
+    info(f"{name} redeployed")
+
+    return True
