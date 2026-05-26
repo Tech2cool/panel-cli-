@@ -32,7 +32,7 @@ def docker_create_cmd(name, domain, port, type):
     ])
 
     if type == "static":
-        
+
         run_command([
             "sudo",
             "mkdir",
@@ -102,7 +102,7 @@ def docker_create_cmd(name, domain, port, type):
     ])
 
     if result.stdout:
-        error(result.stdout)
+        info(result.stdout)
 
     if result.stderr:
         error(result.stderr)
@@ -282,7 +282,7 @@ def app_delete_cmd(name):
         ])
 
         if result.stdout:
-            error(result.stdout)
+            info(result.stdout)
 
         if result.stderr:
             error(result.stderr)
