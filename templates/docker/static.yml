@@ -1,0 +1,13 @@
+services:
+  app:
+    image: nginx:alpine
+
+    container_name: {{NAME}}
+
+    ports:
+      - "127.0.0.1:{{PORT}}:80"
+
+    volumes:
+      - /opt/panel/apps/{{NAME}}/html:/usr/share/nginx/html
+
+    restart: unless-stopped

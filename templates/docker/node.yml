@@ -1,0 +1,17 @@
+services:
+  app:
+    image: node:20
+
+    container_name: {{NAME}}
+
+    working_dir: /app
+
+    command: node server.js
+
+    volumes:
+      - /opt/panel/apps/{{NAME}}/app:/app
+
+    ports:
+      - "127.0.0.1:{{PORT}}:3000"
+
+    restart: unless-stopped
