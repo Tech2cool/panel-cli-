@@ -23,6 +23,7 @@ def docker_create_cmd(name, domain, port, type):
     
     app_dir = f"/opt/panel/apps/{name}"
     html_dir = f"{app_dir}/html"
+    node_app_dir = f"{app_dir}/app"
 
     run_command([
         "sudo",
@@ -50,6 +51,34 @@ def docker_create_cmd(name, domain, port, type):
             f"{html_dir}/index.html"
         ])
 
+    if type == "node":
+
+        run_command([
+            "sudo",
+            "mkdir",
+            "-p",
+            node_app_dir
+        ])
+
+        with open("server.js", "w") as f:
+            f.write(
+                f"""
+    const http = require('http');
+
+    const server = http.createServer((req, res) => {{
+        res.end('{name} works!');
+    }});
+
+    server.listen(3000);
+    """
+            )
+
+        run_command([
+            "sudo",
+            "cp",
+            "server.js",
+            f"{node_app_dir}/server.js"
+        ])
 
     template_path = (
         Path.home()
