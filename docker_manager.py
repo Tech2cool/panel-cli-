@@ -571,6 +571,7 @@ def app_create_cmd(name, domain, port, type,repo,start):
     info(f"{name} fully deployed and healthy")
     return True
 
+
 def app_redeploy_cmd(name):
 
     app_dir = Path(f"/opt/panel/apps/{name}")
@@ -651,7 +652,9 @@ def app_redeploy_cmd(name):
     # NODE DEPENDENCIES
     #
 
-    if runtime == "node":
+    package_json = node_app_dir / "package.json"
+
+    if runtime == "node" and package_json.exists():
 
         npm_result = run_command([
             "sudo",
