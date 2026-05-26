@@ -677,3 +677,42 @@ def app_redeploy_cmd(name):
     info(f"{name} redeployed")
 
     return True
+
+
+def app_logs_cmd(name):
+
+    app_dir = Path(f"/opt/panel/apps/{name}")
+
+    logs_dir = app_dir / "logs"
+
+    if not logs_dir.exists():
+        error("Logs not found")
+        return False
+
+    deploy_log = logs_dir / "deploy.log"
+
+    build_log = logs_dir / "build.log"
+
+    #
+    # DEPLOY LOGS
+    #
+
+    if deploy_log.exists():
+
+        info("=== DEPLOY LOGS ===")
+
+        with open(deploy_log) as f:
+            print(f.read())
+
+    #
+    # BUILD LOGS
+    #
+
+    if build_log.exists():
+
+        info("=== BUILD LOGS ===")
+
+        with open(build_log) as f:
+            print(f.read())
+
+    return True
