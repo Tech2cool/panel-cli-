@@ -12,7 +12,7 @@ def ssl_enable_cmd(domain):
         "--non-interactive",
         "--agree-tos",
         "-m",
-        "admin@example.com",
+        "tech2cool123@gmail.com",
         "--redirect"
     ])
 
