@@ -1,4 +1,7 @@
 
+sudo mkdir -p /opt/panel/sites
+sudo chown -R ubuntu:ubuntu /opt/panel
+-------
 sudo chmod +x cli.py
 -------
 source ~/panel/venv/bin/activate

@@ -1,6 +1,6 @@
 #!/home/ubuntu/panel/venv/bin/python
 
-from site_manager import site_create_cmd, site_disable_cmd, site_enable_cmd, site_list_cmd
+from site_manager import site_create_cmd, site_delete_cmd, site_disable_cmd, site_enable_cmd, site_list_cmd
 import typer
 
 
@@ -31,6 +31,9 @@ def site_create(
         port=port,
     )
 
+@app.command()
+def site_delete(name: str):
+    site_delete_cmd(name)
 
 @app.command()
 def site_list():
