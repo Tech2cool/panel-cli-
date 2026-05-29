@@ -1,6 +1,6 @@
 #!/home/ubuntu/panel/venv/bin/python
 
-from panel.site_manager import site_create_cmd, site_delete_cmd, site_disable_cmd, site_enable_cmd, site_list_cmd
+from panel.site_manager import site_create_cmd, site_delete_cmd, site_disable_cmd, site_enable_cmd, site_list_cmd, site_ssl_cmd
 import typer
 
 
@@ -49,6 +49,12 @@ def site_disable(domain: str):
 def site_enable(domain: str):
     site_enable_cmd(domain)
 
+
+@app.command()
+def site_ssl(
+    name: str
+):
+    site_ssl_cmd(name)
 
 if __name__ == "__main__":
     app()

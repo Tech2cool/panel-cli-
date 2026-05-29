@@ -512,6 +512,94 @@ def site_enable_cmd(domain: str):
     info(f"{domain} enabled")
 
 
+def site_ssl_cmd(name):
+
+    name = name.strip().lower()
+
+    site_dir = (SITES_DIR / name).resolve()
+
+    #
+    # SAFE PATH
+    #
+
+    if not str(site_dir).startswith(str(SITES_DIR.resolve())):
+        error("Invalid site path")
+        return False
+
+    #
+    # EXISTS
+    #
+
+    if not site_dir.exists():
+        error("Site not found")
+        return False
+
+    #
+    # LOAD CONFIG
+    #
+
+    config_file = site_dir / "site.json"
+
+    if not config_file.exists():
+        error("Missing site config")
+        return False
+
+    with open(config_file) as f:
+        site_data = json.load(f)
+
+    domain = site_data.get("domain")
+
+    if not domain:
+        error("Missing domain")
+        return False
+
+    #
+    # RUN CERTBOT
+    #
+
+    info(f"Issuing SSL for {domain}")
+
+    result = run_command([
+        "sudo",
+        "certbot",
+        "--nginx",
+        "-d",
+        domain,
+        "--non-interactive",
+        "--agree-tos",
+        "-m",
+        f"admin@{domain}",
+        "--redirect"
+    ])
+
+    #
+    # FAILED
+    #
+
+    if result.returncode != 0:
+
+        if result.stderr:
+            error(result.stderr)
+
+        error("SSL generation failed")
+
+        return False
+
+    #
+    # UPDATE SITE METADATA
+    #
+
+    site_data["ssl"] = True
+
+    with open(config_file, "w") as f:
+        json.dump(site_data, f, indent=4)
+
+    info(f"SSL enabled for {domain}")
+
+    return True
+
+
+
 
 
 

@@ -1,26 +1,25 @@
 
 sudo git reset --hard HEAD
 git pull
-sudo chmod +x cli.py
+sudo chmod +x ~/panel/panel/cli.py
 
 
-
-
+//actual cmd
 sudo mkdir -p /opt/panel/sites
 sudo chown -R ubuntu:ubuntu /opt/panel
 -------
-sudo chmod +x cli.py
+sudo chmod +x ~/panel/panel/cli.py
 -------
 source ~/panel/venv/bin/activate
 -------
 # install all packages
 pip install -e . 
-pip install typer jinja2
 -------
-sudo ln -sf ~/panel/cli.py /usr/local/bin/panel
+sudo ln -sf ~/panel/panel/cli.py /usr/local/bin/panel
 -------
-
-
+sudo apt update
+sudo apt install certbot python3-certbot-nginx -y
+-------
 
 
 
