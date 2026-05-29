@@ -5,9 +5,9 @@ from fastapi import (
 )
 import os
 from dotenv import load_dotenv
-from docker_manager import *
-from nginx_manager import *
-from ssl_manager import ssl_enable_cmd
+from old.docker_manager import *
+from old.nginx_manager import *
+from old.ssl_manager import ssl_enable_cmd
 
 load_dotenv()
 

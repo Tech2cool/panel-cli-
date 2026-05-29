@@ -10,7 +10,7 @@ import json
 import time
 import secrets
 
-from nginx_manager import site_create_cmd, site_delete_cmd
+from old.nginx_manager import site_create_cmd, site_delete_cmd
 
 def docker_list_cmd():
 

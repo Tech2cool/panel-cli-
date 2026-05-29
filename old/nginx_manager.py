@@ -190,3 +190,83 @@ def site_delete_cmd(domain: str):
     ])
 
     info(f"{domain} archived")
+
+
+def nginx_delete_cmd(domain):
+
+    available_path = (
+        Path("/etc/nginx/sites-available")
+        / f"{domain}.conf"
+    )
+
+    enabled_path = (
+        Path("/etc/nginx/sites-enabled")
+        / f"{domain}.conf"
+    )
+
+    #
+    # REMOVE ENABLED LINK
+    #
+
+    if enabled_path.exists():
+
+        run_command([
+            "sudo",
+            "rm",
+            "-f",
+            str(enabled_path)
+        ])
+
+    #
+    # REMOVE SITE CONFIG
+    #
+
+    if available_path.exists():
+
+        run_command([
+            "sudo",
+            "rm",
+            "-f",
+            str(available_path)
+        ])
+
+    #
+    # TEST NGINX
+    #
+
+    test_result = run_command([
+        "sudo",
+        "nginx",
+        "-t"
+    ])
+
+    if test_result.stderr and test_result.returncode != 0:
+
+        error(test_result.stderr)
+
+        error("Nginx config invalid")
+
+        return False
+
+    #
+    # RELOAD NGINX
+    #
+
+    reload_result = run_command([
+        "sudo",
+        "systemctl",
+        "reload",
+        "nginx"
+    ])
+
+    if reload_result.stderr and reload_result.returncode != 0:
+
+        error(reload_result.stderr)
+
+        error("Failed reloading nginx")
+
+        return False
+
+    info(f"{domain} removed")
+
+    return True
