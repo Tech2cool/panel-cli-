@@ -8,7 +8,7 @@ import shutil
 from jinja2 import Template
 
 from constants import NGINX_AVAILABLE, NGINX_ENABLED
-from helpers.site import domain_exists, validate_domain, validate_site_name
+from helpers.site import domain_exists, port_exists, validate_domain, validate_site_name
 from helpers.system import run_command
 from logger import *
 
