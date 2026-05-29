@@ -1,3 +1,5 @@
+#!/home/ubuntu/panel/venv/bin/python
+
 from site_manager import site_create_cmd, site_disable_cmd, site_enable_cmd, site_list_cmd
 import typer
 
