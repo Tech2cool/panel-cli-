@@ -4,6 +4,14 @@ import json
 from pathlib import Path
 import re
 from urllib.parse import urlparse
+import ipaddress
+
+LOCAL_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "0.0.0.0",
+]
 
 
 PANEL_ROOT = Path("/opt/panel")
@@ -111,3 +119,19 @@ def validate_proxy_url(url):
 
 
 
+
+def is_local_target(host):
+    if host in LOCAL_HOSTS:
+        return True
+
+    try:
+        ip = ipaddress.ip_address(host)
+
+        return (
+            ip.is_private
+            or ip.is_loopback
+        )
+
+    except:
+        # probably docker hostname
+        return "." not in host

@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 from jinja2 import Template
 
 from panel.constants import NGINX_AVAILABLE, NGINX_ENABLED
-from panel.helpers.site import domain_exists, get_site, port_exists, validate_domain, validate_proxy_url, validate_site_name
+from panel.helpers.site import domain_exists, get_site, is_local_target, port_exists, validate_domain, validate_proxy_url, validate_site_name
 from panel.helpers.system import run_command
 from panel.logger import *
 
@@ -65,7 +65,7 @@ def site_create_cmd(
 
     name = name.strip().lower()
     domain = domain.strip().lower()
-
+    upstream_host = "$host"
     #
     # VALIDATION
     #
@@ -132,6 +132,11 @@ def site_create_cmd(
         #
 
         parsed = urlparse(proxy_url)
+        if is_local_target(parsed.hostname):
+            upstream_host = "$host"
+        else:
+            upstream_host = parsed.hostname
+
 
         if parsed.hostname in ["127.0.0.1", "localhost"]:
 
@@ -236,6 +241,7 @@ def site_create_cmd(
             ROOT=public_dir,
             PORT=port,
             PROXY_URL=proxy_url,
+            upstream_host=upstream_host,
         )
 
         #
