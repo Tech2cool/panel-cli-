@@ -51,6 +51,7 @@ def cleanup_failed_site(site_dir, domain):
     except Exception as e:
         error(f"Cleanup failed: {e}")
 
+
 def site_create_cmd(
     name,
     domain,
@@ -65,7 +66,9 @@ def site_create_cmd(
 
     name = name.strip().lower()
     domain = domain.strip().lower()
+
     upstream_host = "$host"
+
     #
     # VALIDATION
     #
@@ -99,6 +102,12 @@ def site_create_cmd(
         return False
 
     #
+    # SYSTEM USER
+    #
+
+    system_user = f"site_{name}"
+
+    #
     # PROXY VALIDATION
     #
 
@@ -128,17 +137,22 @@ def site_create_cmd(
             return False
 
         #
-        # OPTIONAL LOCAL PORT VALIDATION
+        # PARSE URL
         #
 
         parsed = urlparse(proxy_url)
+
+        if not parsed.hostname:
+            error("Invalid proxy hostname")
+            return False
+
+        #
+        # LOCAL TARGET
+        #
+
         if is_local_target(parsed.hostname):
+
             upstream_host = "$host"
-        else:
-            upstream_host = parsed.hostname
-
-
-        if parsed.hostname in ["127.0.0.1", "localhost"]:
 
             target_port = parsed.port
 
@@ -149,6 +163,14 @@ def site_create_cmd(
             if target_port < 1 or target_port > 65535:
                 error("Invalid proxy port")
                 return False
+
+        #
+        # EXTERNAL TARGET
+        #
+
+        else:
+
+            upstream_host = parsed.hostname
 
     #
     # SAFE PATH
@@ -170,7 +192,10 @@ def site_create_cmd(
 
     try:
 
-        site_dir.mkdir(parents=True, exist_ok=False)
+        site_dir.mkdir(
+            parents=True,
+            exist_ok=False
+        )
 
     except Exception as e:
 
@@ -179,6 +204,30 @@ def site_create_cmd(
         return False
 
     try:
+
+        #
+        # CREATE SYSTEM USER
+        #
+
+        create_user = run_command([
+            "sudo",
+            "useradd",
+            "-r",
+            "-s",
+            "/usr/sbin/nologin",
+            system_user
+        ])
+
+        if create_user.returncode != 0:
+
+            if create_user.stderr:
+                error(create_user.stderr)
+
+            error("Failed to create system user")
+
+            cleanup_failed_site(site_dir, domain)
+
+            return False
 
         #
         # SAVE METADATA
@@ -192,6 +241,7 @@ def site_create_cmd(
             "ssl": False,
             "port": port,
             "proxy_url": proxy_url,
+            "system_user": system_user,
             "created_at": datetime.utcnow().isoformat(),
         }
 
@@ -209,7 +259,9 @@ def site_create_cmd(
             public_dir.mkdir(exist_ok=True)
 
             with open(public_dir / "index.html", "w") as f:
-                f.write(f"<h1>{domain} created successfully</h1>")
+                f.write(
+                    f"<h1>{domain} created successfully</h1>"
+                )
 
         #
         # LOAD TEMPLATE
@@ -257,7 +309,9 @@ def site_create_cmd(
         # INSTALL CONFIG
         #
 
-        config_path = f"{NGINX_AVAILABLE}/{domain}.conf"
+        config_path = (
+            f"{NGINX_AVAILABLE}/{domain}.conf"
+        )
 
         copy_result = run_command([
             "sudo",
@@ -335,6 +389,60 @@ def site_create_cmd(
             return False
 
         #
+        # OWNERSHIP
+        #
+
+        ownership = run_command([
+            "sudo",
+            "chown",
+            "-R",
+            f"{system_user}:{system_user}",
+            str(site_dir)
+        ])
+
+        if ownership.returncode != 0:
+
+            error("Failed setting ownership")
+
+            cleanup_failed_site(site_dir, domain)
+
+            return False
+
+        #
+        # DIRECTORY PERMISSIONS
+        #
+
+        run_command([
+            "sudo",
+            "find",
+            str(site_dir),
+            "-type",
+            "d",
+            "-exec",
+            "chmod",
+            "755",
+            "{}",
+            ";"
+        ])
+
+        #
+        # FILE PERMISSIONS
+        #
+
+        run_command([
+            "sudo",
+            "find",
+            str(site_dir),
+            "-type",
+            "f",
+            "-exec",
+            "chmod",
+            "644",
+            "{}",
+            ";"
+        ])
+
+        #
         # SUCCESS
         #
 
@@ -349,7 +457,8 @@ def site_create_cmd(
         error(f"Site creation failed: {e}")
 
         return False
-    
+
+
 
 
 def site_list_cmd():
