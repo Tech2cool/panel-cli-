@@ -433,57 +433,164 @@ def site_list_cmd():
 
     return True
 
-def site_delete_cmd(name):
-    site_dir = SITES_DIR / name
+def site_delete_cmd(name, force=False):
+
+    #
+    # NORMALIZE
+    #
+
+    name = name.strip().lower()
+
+    #
+    # SAFE PATH
+    #
+
+    site_dir = (SITES_DIR / name).resolve()
+
+    if not str(site_dir).startswith(str(SITES_DIR.resolve())):
+        error("Invalid site path")
+        return False
+
+    #
+    # EXISTS
+    #
 
     if not site_dir.exists():
         error("Site not found")
         return False
 
-    domain = None
+    #
+    # SITE.JSON
+    #
 
-    import json
+    site_json = site_dir / "site.json"
 
-    with open(site_dir / "site.json") as f:
-        data = json.load(f)
-        domain = data["domain"]
+    if not site_json.exists():
+
+        if not force:
+            error("Corrupted site metadata")
+            return False
+
+        domain = name
+
+    else:
+
+        try:
+
+            with open(site_json) as f:
+                data = json.load(f)
+
+            domain = data.get("domain")
+            site_type = data.get("type")
+
+        except Exception as e:
+
+            if not force:
+                error(f"Failed to read metadata: {e}")
+                return False
+
+            domain = name
+            site_type = None
 
     #
-    # REMOVE NGINX FILES
+    # REMOVE NGINX SYMLINK
     #
+
+    enabled_path = f"{NGINX_ENABLED}/{domain}.conf"
 
     run_command([
         "sudo",
         "rm",
         "-f",
-        f"{NGINX_ENABLED}/{domain}.conf"
+        enabled_path
     ])
+
+    #
+    # REMOVE NGINX CONFIG
+    #
+
+    available_path = f"{NGINX_AVAILABLE}/{domain}.conf"
 
     run_command([
         "sudo",
         "rm",
         "-f",
-        f"{NGINX_AVAILABLE}/{domain}.conf"
+        available_path
     ])
+
+    #
+    # OPTIONAL DOCKER CLEANUP
+    #
+
+    if site_type == "docker":
+
+        #
+        # future:
+        # docker stop
+        # docker rm
+        # docker network cleanup
+        #
+
+        pass
+
+    #
+    # TEST NGINX
+    #
+
+    nginx_test = run_command([
+        "sudo",
+        "nginx",
+        "-t"
+    ])
+
+    if nginx_test.returncode != 0:
+
+        error("Nginx config test failed")
+
+        if nginx_test.stderr:
+            error(nginx_test.stderr)
+
+        return False
 
     #
     # RELOAD NGINX
     #
 
-    run_command([
+    nginx_reload = run_command([
         "sudo",
         "systemctl",
         "reload",
         "nginx"
     ])
 
+    if nginx_reload.returncode != 0:
+
+        error("Failed to reload nginx")
+
+        if nginx_reload.stderr:
+            error(nginx_reload.stderr)
+
+        return False
+
     #
-    # DELETE SITE
+    # DELETE SITE FILES
     #
 
-    shutil.rmtree(site_dir)
+    try:
 
-    info(f"{name} deleted")
+        shutil.rmtree(site_dir)
+
+    except Exception as e:
+
+        error(f"Failed to delete site files: {e}")
+
+        return False
+
+    #
+    # SUCCESS
+    #
+
+    info(f"{domain} deleted successfully")
 
     return True
 
