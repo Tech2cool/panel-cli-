@@ -23,12 +23,14 @@ def site_create(
     domain: str,
     site_type: str = typer.Option("static"),
     port: int = typer.Option(None),
+    proxy_url: str = typer.Option(None),
 ):
     site_create_cmd(
         name=name,
         domain=domain,
         site_type=site_type,
         port=port,
+        proxy_url=proxy_url
     )
 
 @app.command()

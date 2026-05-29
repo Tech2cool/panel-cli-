@@ -4,11 +4,12 @@ import json
 from pathlib import Path
 from datetime import datetime
 import shutil
+from urllib.parse import urlparse
 
 from jinja2 import Template
 
 from panel.constants import NGINX_AVAILABLE, NGINX_ENABLED
-from panel.helpers.site import domain_exists, get_site, port_exists, validate_domain, validate_site_name
+from panel.helpers.site import domain_exists, get_site, port_exists, validate_domain, validate_proxy_url, validate_site_name
 from panel.helpers.system import run_command
 from panel.logger import *
 
@@ -50,8 +51,13 @@ def cleanup_failed_site(site_dir, domain):
     except Exception as e:
         error(f"Cleanup failed: {e}")
 
-
-def site_create_cmd(name, domain, site_type, port=None):
+def site_create_cmd(
+    name,
+    domain,
+    site_type,
+    port=None,
+    proxy_url=None
+):
 
     #
     # NORMALIZE
@@ -93,26 +99,51 @@ def site_create_cmd(name, domain, site_type, port=None):
         return False
 
     #
-    # PORT VALIDATION
+    # PROXY VALIDATION
     #
 
     if site_type in ["proxy", "docker"]:
 
-        if port is None:
-            error(f"Port required for {site_type}")
+        #
+        # PORT SHORTHAND
+        #
+
+        if port and not proxy_url:
+            proxy_url = f"http://127.0.0.1:{port}"
+
+        #
+        # REQUIRE TARGET
+        #
+
+        if not proxy_url:
+            error(f"Proxy URL required for {site_type}")
             return False
 
-        if not isinstance(port, int):
-            error("Port must be integer")
+        #
+        # VALIDATE URL
+        #
+
+        if not validate_proxy_url(proxy_url):
+            error("Invalid proxy URL")
             return False
 
-        if port < 1 or port > 65535:
-            error("Invalid port")
-            return False
+        #
+        # OPTIONAL LOCAL PORT VALIDATION
+        #
 
-        if port_exists(port):
-            error("Port already in use")
-            return False
+        parsed = urlparse(proxy_url)
+
+        if parsed.hostname in ["127.0.0.1", "localhost"]:
+
+            target_port = parsed.port
+
+            if not target_port:
+                error("Missing proxy port")
+                return False
+
+            if target_port < 1 or target_port > 65535:
+                error("Invalid proxy port")
+                return False
 
     #
     # SAFE PATH
@@ -153,7 +184,9 @@ def site_create_cmd(name, domain, site_type, port=None):
             "domain": domain,
             "type": site_type,
             "status": "active",
+            "ssl": False,
             "port": port,
+            "proxy_url": proxy_url,
             "created_at": datetime.utcnow().isoformat(),
         }
 
@@ -161,7 +194,7 @@ def site_create_cmd(name, domain, site_type, port=None):
             json.dump(site_data, f, indent=4)
 
         #
-        # PUBLIC DIRECTORY
+        # STATIC SITE ROOT
         #
 
         public_dir = site_dir / "public"
@@ -174,12 +207,12 @@ def site_create_cmd(name, domain, site_type, port=None):
                 f.write(f"<h1>{domain} created successfully</h1>")
 
         #
-        # LOAD NGINX TEMPLATE
+        # LOAD TEMPLATE
         #
 
         template_path = (
             Path.home()
-            / "panel/templates/nginx"
+            / "panel/panel/templates/nginx"
             / f"{site_type}.conf"
         )
 
@@ -195,13 +228,14 @@ def site_create_cmd(name, domain, site_type, port=None):
             template = Template(f.read())
 
         #
-        # RENDER NGINX CONFIG
+        # RENDER CONFIG
         #
 
         config = template.render(
             DOMAIN=domain,
-            PORT=port,
             ROOT=public_dir,
+            PORT=port,
+            PROXY_URL=proxy_url,
         )
 
         #
@@ -294,6 +328,10 @@ def site_create_cmd(name, domain, site_type, port=None):
 
             return False
 
+        #
+        # SUCCESS
+        #
+
         info(f"{domain} created successfully!")
 
         return True
@@ -305,17 +343,7 @@ def site_create_cmd(name, domain, site_type, port=None):
         error(f"Site creation failed: {e}")
 
         return False
-
-# commands/site_list.py
-
-import json
-
-from pathlib import Path
-
-from panel.logger import *
-
-PANEL_ROOT = Path("/opt/panel")
-SITES_DIR = PANEL_ROOT / "sites"
+    
 
 
 def site_list_cmd():
@@ -399,9 +427,6 @@ def site_list_cmd():
 
     return True
 
-
-
-
 def site_delete_cmd(name):
     site_dir = SITES_DIR / name
 
@@ -456,8 +481,36 @@ def site_delete_cmd(name):
 
     return True
 
+def site_disable_cmd(identifier: str):
 
-def site_disable_cmd(domain: str):
+    identifier = identifier.strip().lower()
+
+    #
+    # GET SITE
+    #
+
+    site_data = get_site(identifier)
+
+    if not site_data:
+        error("Site not found")
+        return False
+
+    domain = site_data.get("domain")
+    name = site_data.get("name")
+
+    #
+    # SITE DIR
+    #
+
+    site_dir = (SITES_DIR / name).resolve()
+
+    if not str(site_dir).startswith(str(SITES_DIR.resolve())):
+        error("Invalid site path")
+        return False
+
+    #
+    # REMOVE ENABLED LINK
+    #
 
     enabled_path = f"{NGINX_ENABLED}/{domain}.conf"
 
@@ -468,33 +521,108 @@ def site_disable_cmd(domain: str):
         enabled_path
     ])
 
-    result = run_command(
-        ["sudo", "nginx", "-t"]
-    )
+    #
+    # TEST NGINX
+    #
 
-    error(result.stdout)
-    error(result.stderr)
+    result = run_command([
+        "sudo",
+        "nginx",
+        "-t"
+    ])
 
     if result.returncode != 0:
-        error("Nginx config invalid")
-        return
 
-    run_command([
+        if result.stderr:
+            error(result.stderr)
+
+        error("Nginx config invalid")
+
+        return False
+
+    #
+    # RELOAD NGINX
+    #
+
+    reload_result = run_command([
         "sudo",
         "systemctl",
         "reload",
         "nginx"
     ])
 
+    if reload_result.returncode != 0:
+
+        error("Failed to reload nginx")
+
+        return False
+
+    #
+    # UPDATE METADATA
+    #
+
+    site_data["status"] = "disabled"
+
+    config_file = site_dir / "site.json"
+
+    with open(config_file, "w") as f:
+        json.dump(site_data, f, indent=4)
+
+    #
+    # SUCCESS
+    #
+
     info(f"{domain} disabled")
 
+    return True
 
-def site_enable_cmd(domain: str):
+def site_enable_cmd(identifier: str):
+
+    identifier = identifier.strip().lower()
+
+    #
+    # GET SITE
+    #
+
+    site_data = get_site(identifier)
+
+    if not site_data:
+        error("Site not found")
+        return False
+
+    domain = site_data.get("domain")
+    name = site_data.get("name")
+
+    if not domain:
+        error("Missing domain")
+        return False
+
+    #
+    # SITE DIR
+    #
+
+    site_dir = (SITES_DIR / name).resolve()
+
+    #
+    # SAFE PATH
+    #
+
+    if not str(site_dir).startswith(str(SITES_DIR.resolve())):
+        error("Invalid site path")
+        return False
+
+    #
+    # PATHS
+    #
 
     available_path = f"{NGINX_AVAILABLE}/{domain}.conf"
     enabled_path = f"{NGINX_ENABLED}/{domain}.conf"
 
-    run_command([
+    #
+    # ENABLE SITE
+    #
+
+    symlink_result = run_command([
         "sudo",
         "ln",
         "-sf",
@@ -502,26 +630,66 @@ def site_enable_cmd(domain: str):
         enabled_path
     ])
 
-    result = run_command(
-        ["sudo", "nginx", "-t"]
-    )
+    if symlink_result.returncode != 0:
 
-    error(result.stdout)
-    error(result.stderr)
+        error("Failed to enable site")
+
+        return False
+
+    #
+    # TEST NGINX
+    #
+
+    result = run_command([
+        "sudo",
+        "nginx",
+        "-t"
+    ])
 
     if result.returncode != 0:
-        error("Nginx config invalid")
-        return
 
-    run_command([
+        if result.stderr:
+            error(result.stderr)
+
+        error("Nginx config invalid")
+
+        return False
+
+    #
+    # RELOAD NGINX
+    #
+
+    reload_result = run_command([
         "sudo",
         "systemctl",
         "reload",
         "nginx"
     ])
 
+    if reload_result.returncode != 0:
+
+        error("Failed to reload nginx")
+
+        return False
+
+    #
+    # UPDATE METADATA
+    #
+
+    site_data["status"] = "active"
+
+    config_file = site_dir / "site.json"
+
+    with open(config_file, "w") as f:
+        json.dump(site_data, f, indent=4)
+
+    #
+    # SUCCESS
+    #
+
     info(f"{domain} enabled")
 
+    return True
 
 def site_ssl_cmd(identifier):
 
@@ -616,7 +784,4 @@ def site_ssl_cmd(identifier):
     info(f"SSL enabled for {domain}")
 
     return True
-
-
-
 

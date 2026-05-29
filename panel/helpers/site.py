@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 import re
+from urllib.parse import urlparse
 
 
 PANEL_ROOT = Path("/opt/panel")
@@ -98,3 +99,15 @@ def get_site(identifier):
             continue
 
     return None
+
+
+def validate_proxy_url(url):
+    parsed = urlparse(url)
+
+    return all([
+        parsed.scheme in ["http", "https"],
+        parsed.netloc
+    ])
+
+
+
