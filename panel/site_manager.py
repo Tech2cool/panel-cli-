@@ -360,7 +360,7 @@ def site_list_cmd():
         return True
 
     #
-    # OUTPUT
+    # TABLE HEADER
     #
 
     print()
@@ -370,26 +370,37 @@ def site_list_cmd():
         f"{'DOMAIN':30}"
         f"{'TYPE':12}"
         f"{'STATUS':12}"
+        f"{'SSL':8}"
         f"{'PORT':8}"
     )
 
-    print("-" * 82)
+    print("-" * 90)
+
+    #
+    # ROWS
+    #
 
     for site in sites:
 
         port = site.get("port") or "-"
+
+        ssl = "yes" if site.get("ssl") else "no"
 
         print(
             f"{site.get('name', '-'):20}"
             f"{site.get('domain', '-'):30}"
             f"{site.get('type', '-'):12}"
             f"{site.get('status', '-'):12}"
+            f"{ssl:8}"
             f"{str(port):8}"
         )
 
     print()
 
     return True
+
+
+
 
 def site_delete_cmd(name):
     site_dir = SITES_DIR / name
