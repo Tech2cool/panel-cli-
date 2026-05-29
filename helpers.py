@@ -24,3 +24,5 @@ def write_log(app_dir, filename, content):
     with open(log_file, "a") as f:
         f.write(content)
         f.write("\n")
+
+

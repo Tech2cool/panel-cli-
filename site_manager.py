@@ -9,6 +9,7 @@ from jinja2 import Template
 
 from constants import NGINX_AVAILABLE, NGINX_ENABLED
 from helpers import run_command
+from helpers.site import domain_exists, port_exists, validate_domain, validate_site_name
 from logger import *
 
 PANEL_ROOT = Path("/opt/panel")
@@ -16,140 +17,294 @@ SITES_DIR = PANEL_ROOT / "sites"
 
 VALID_TYPES = ["static", "proxy", "docker"]
 
+RESERVED_NAMES = [
+    "www",
+    "root",
+    "admin",
+    "api",
+]
+
+
+def cleanup_failed_site(site_dir, domain):
+    """
+    Cleanup partially created site
+    """
+
+    try:
+        shutil.rmtree(site_dir, ignore_errors=True)
+
+        run_command([
+            "sudo",
+            "rm",
+            "-f",
+            f"{NGINX_ENABLED}/{domain}.conf"
+        ])
+
+        run_command([
+            "sudo",
+            "rm",
+            "-f",
+            f"{NGINX_AVAILABLE}/{domain}.conf"
+        ])
+
+    except Exception as e:
+        error(f"Cleanup failed: {e}")
+
 
 def site_create_cmd(name, domain, site_type, port=None):
-    site_dir = SITES_DIR / name
+
+    #
+    # NORMALIZE
+    #
+
+    name = name.strip().lower()
+    domain = domain.strip().lower()
 
     #
     # VALIDATION
     #
 
-    if site_dir.exists():
-        error("Site already exists")
+    if not name:
+        error("Site name required")
+        return False
+
+    if not domain:
+        error("Domain required")
+        return False
+
+    if name in RESERVED_NAMES:
+        error("Reserved site name")
+        return False
+
+    if not validate_site_name(name):
+        error("Invalid site name")
+        return False
+
+    if not validate_domain(domain):
+        error("Invalid domain")
+        return False
+
+    if domain_exists(domain):
+        error("Domain already exists")
         return False
 
     if site_type not in VALID_TYPES:
         error(f"Invalid type. Allowed: {', '.join(VALID_TYPES)}")
         return False
 
-    if site_type in ["proxy", "docker"] and not port:
-        error(f"Port required for {site_type}")
+    #
+    # PORT VALIDATION
+    #
+
+    if site_type in ["proxy", "docker"]:
+
+        if port is None:
+            error(f"Port required for {site_type}")
+            return False
+
+        if not isinstance(port, int):
+            error("Port must be integer")
+            return False
+
+        if port < 1 or port > 65535:
+            error("Invalid port")
+            return False
+
+        if port_exists(port):
+            error("Port already in use")
+            return False
+
+    #
+    # SAFE PATH
+    #
+
+    site_dir = (SITES_DIR / name).resolve()
+
+    if not str(site_dir).startswith(str(SITES_DIR.resolve())):
+        error("Invalid site path")
+        return False
+
+    if site_dir.exists():
+        error("Site already exists")
         return False
 
     #
-    # CREATE SITE DIR
+    # CREATE SITE DIRECTORY
     #
 
-    site_dir.mkdir(parents=True)
+    try:
 
-    #
-    # SAVE METADATA
-    #
+        site_dir.mkdir(parents=True, exist_ok=False)
 
-    site_data = {
-        "name": name,
-        "domain": domain,
-        "type": site_type,
-        "status": "active",
-        "port": port,
-        "created_at": datetime.utcnow().isoformat(),
-    }
+    except Exception as e:
 
-    with open(site_dir / "site.json", "w") as f:
-        json.dump(site_data, f, indent=4)
+        error(f"Failed to create site directory: {e}")
 
-    #
-    # LOAD NGINX TEMPLATE
-    #
-
-    template_path = (
-        Path.home()
-        / "panel/templates/nginx"
-        / f"{site_type}.conf"
-    )
-
-    if not template_path.exists():
-        error("Template not found")
         return False
 
-    with open(template_path) as f:
-        template = Template(f.read())
+    try:
 
-    config = template.render(
-        DOMAIN=domain,
-        PORT=port,
-        ROOT=site_dir / "public",
-    )
+        #
+        # SAVE METADATA
+        #
 
-    #
-    # STATIC SITE ROOT
-    #
+        site_data = {
+            "name": name,
+            "domain": domain,
+            "type": site_type,
+            "status": "active",
+            "port": port,
+            "created_at": datetime.utcnow().isoformat(),
+        }
 
-    if site_type == "static":
-        (site_dir / "public").mkdir(exist_ok=True)
+        with open(site_dir / "site.json", "w") as f:
+            json.dump(site_data, f, indent=4)
 
-        with open(site_dir / "public/index.html", "w") as f:
-            f.write("<h1>It works</h1>")
+        #
+        # PUBLIC DIRECTORY
+        #
 
-    #
-    # WRITE NGINX CONFIG
-    #
+        public_dir = site_dir / "public"
 
-    temp_config = site_dir / "nginx.conf"
+        if site_type == "static":
 
-    with open(temp_config, "w") as f:
-        f.write(config)
+            public_dir.mkdir(exist_ok=True)
 
-    config_path = f"{NGINX_AVAILABLE}/{domain}.conf"
+            with open(public_dir / "index.html", "w") as f:
+                f.write(f"<h1>{domain} created successfully</h1>")
 
-    run_command([
-        "sudo",
-        "cp",
-        str(temp_config),
-        config_path
-    ])
+        #
+        # LOAD NGINX TEMPLATE
+        #
 
-    run_command([
-        "sudo",
-        "ln",
-        "-sf",
-        config_path,
-        f"{NGINX_ENABLED}/{domain}.conf"
-    ])
+        template_path = (
+            Path.home()
+            / "panel/templates/nginx"
+            / f"{site_type}.conf"
+        )
 
-    #
-    # TEST NGINX
-    #
+        if not template_path.exists():
 
-    result = run_command([
-        "sudo",
-        "nginx",
-        "-t"
-    ])
+            error("Template not found")
 
-    if result.returncode != 0:
-        error(result.stderr)
+            cleanup_failed_site(site_dir, domain)
+
+            return False
+
+        with open(template_path) as f:
+            template = Template(f.read())
+
+        #
+        # RENDER NGINX CONFIG
+        #
+
+        config = template.render(
+            DOMAIN=domain,
+            PORT=port,
+            ROOT=public_dir,
+        )
+
+        #
+        # TEMP CONFIG
+        #
+
+        temp_config = site_dir / "nginx.conf"
+
+        with open(temp_config, "w") as f:
+            f.write(config)
+
+        #
+        # INSTALL CONFIG
+        #
+
+        config_path = f"{NGINX_AVAILABLE}/{domain}.conf"
+
+        copy_result = run_command([
+            "sudo",
+            "cp",
+            str(temp_config),
+            config_path
+        ])
+
+        if copy_result.returncode != 0:
+
+            error("Failed to install nginx config")
+
+            cleanup_failed_site(site_dir, domain)
+
+            return False
+
+        #
+        # ENABLE SITE
+        #
+
+        symlink_result = run_command([
+            "sudo",
+            "ln",
+            "-sf",
+            config_path,
+            f"{NGINX_ENABLED}/{domain}.conf"
+        ])
+
+        if symlink_result.returncode != 0:
+
+            error("Failed to enable site")
+
+            cleanup_failed_site(site_dir, domain)
+
+            return False
+
+        #
+        # TEST NGINX
+        #
+
+        nginx_test = run_command([
+            "sudo",
+            "nginx",
+            "-t"
+        ])
+
+        if nginx_test.returncode != 0:
+
+            error("Invalid nginx config")
+
+            if nginx_test.stderr:
+                error(nginx_test.stderr)
+
+            cleanup_failed_site(site_dir, domain)
+
+            return False
+
+        #
+        # RELOAD NGINX
+        #
+
+        reload_result = run_command([
+            "sudo",
+            "systemctl",
+            "reload",
+            "nginx"
+        ])
+
+        if reload_result.returncode != 0:
+
+            error("Failed to reload nginx")
+
+            cleanup_failed_site(site_dir, domain)
+
+            return False
+
+        info(f"{domain} created successfully!")
+
+        return True
+
+    except Exception as e:
+
+        cleanup_failed_site(site_dir, domain)
+
+        error(f"Site creation failed: {e}")
+
         return False
-
-    #
-    # RELOAD NGINX
-    #
-
-    reload_result = run_command([
-        "sudo",
-        "systemctl",
-        "reload",
-        "nginx"
-    ])
-
-    if reload_result.returncode != 0:
-        error("Nginx reload failed")
-        return False
-
-    info(f"{domain} created successfully!")
-
-    return True
-
 
 def site_list_cmd():
     if not SITES_DIR.exists():
