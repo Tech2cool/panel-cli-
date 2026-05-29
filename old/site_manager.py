@@ -4,7 +4,7 @@ from pathlib import Path
 
 from datetime import datetime
 
-from helpers import *
+from panel.helpers import *
 
 from old.nginx_manager import *
 

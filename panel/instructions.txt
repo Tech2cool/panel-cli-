@@ -1,4 +1,11 @@
 
+sudo git reset --hard HEAD
+git pull
+sudo chmod +x cli.py
+
+
+
+
 sudo mkdir -p /opt/panel/sites
 sudo chown -R ubuntu:ubuntu /opt/panel
 -------

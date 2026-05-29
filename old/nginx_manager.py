@@ -1,6 +1,6 @@
-from constants import NGINX_AVAILABLE, NGINX_ENABLED
-from helpers import run_command
-from logger import error, info
+from panel.constants import NGINX_AVAILABLE, NGINX_ENABLED
+from panel.helpers import run_command
+from panel.logger import error, info
 from pathlib import Path
 from jinja2 import Template
 

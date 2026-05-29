@@ -7,10 +7,10 @@ import shutil
 
 from jinja2 import Template
 
-from constants import NGINX_AVAILABLE, NGINX_ENABLED
-from helpers.site import domain_exists, port_exists, validate_domain, validate_site_name
-from helpers.system import run_command
-from logger import *
+from panel.constants import NGINX_AVAILABLE, NGINX_ENABLED
+from panel.helpers.site import domain_exists, port_exists, validate_domain, validate_site_name
+from panel.helpers.system import run_command
+from panel.logger import *
 
 PANEL_ROOT = Path("/opt/panel")
 SITES_DIR = PANEL_ROOT / "sites"
@@ -312,7 +312,7 @@ import json
 
 from pathlib import Path
 
-from logger import *
+from panel.logger import *
 
 PANEL_ROOT = Path("/opt/panel")
 SITES_DIR = PANEL_ROOT / "sites"

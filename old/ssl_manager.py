@@ -1,5 +1,5 @@
-from helpers import run_command
-from logger import info, error, success
+from panel.helpers import run_command
+from panel.logger import info, error, success
 
 def ssl_enable_cmd(domain):
 
