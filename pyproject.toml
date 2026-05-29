@@ -1,0 +1,10 @@
+[project]
+name = "panel"
+version = "0.1.0"
+dependencies = [
+    "typer",
+    "jinja2"
+]
+
+[project.scripts]
+panel = "panel.cli:app"
