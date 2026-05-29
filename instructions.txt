@@ -1,3 +1,24 @@
+
+sudo chmod +x cli.py
+-------
+source ~/panel/venv/bin/activate
+-------
+# install all packages
+pip install -e . 
+pip install typer jinja2
+-------
+sudo ln -sf ~/panel/cli.py /usr/local/bin/panel
+-------
+
+
+
+
+
+
+
+
+
+
 sudo visudo
 -------
 ubuntu ALL=(ALL) NOPASSWD: /usr/sbin/nginx, /bin/systemctl, /bin/cp, /bin/ln, /bin/rm, /bin/mv, /bin/mkdir, /bin/chown, /usr/bin/docker, /usr/bin/git, /usr/bin/certbot
