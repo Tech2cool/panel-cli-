@@ -306,26 +306,90 @@ def site_create_cmd(name, domain, site_type, port=None):
 
         return False
 
+# commands/site_list.py
+
+import json
+
+from pathlib import Path
+
+from logger import *
+
+PANEL_ROOT = Path("/opt/panel")
+SITES_DIR = PANEL_ROOT / "sites"
+
+
 def site_list_cmd():
+
     if not SITES_DIR.exists():
-        print("No sites found")
-        return
 
-    for site in SITES_DIR.iterdir():
-        config = site / "site.json"
+        info("No sites directory")
 
-        if not config.exists():
+        return False
+
+    sites = []
+
+    for site_dir in SITES_DIR.iterdir():
+
+        if not site_dir.is_dir():
             continue
 
-        with open(config) as f:
-            data = json.load(f)
+        config_file = site_dir / "site.json"
+
+        if not config_file.exists():
+            continue
+
+        try:
+
+            with open(config_file) as f:
+                data = json.load(f)
+
+            sites.append(data)
+
+        except Exception as e:
+
+            error(f"Failed reading {site_dir.name}: {e}")
+
+    #
+    # EMPTY
+    #
+
+    if not sites:
+
+        info("No sites found")
+
+        return True
+
+    #
+    # OUTPUT
+    #
+
+    print()
+
+    print(
+        f"{'NAME':20}"
+        f"{'DOMAIN':30}"
+        f"{'TYPE':12}"
+        f"{'STATUS':12}"
+        f"{'PORT':8}"
+    )
+
+    print("-" * 82)
+
+    for site in sites:
+
+        port = site.get("port") or "-"
 
         print(
-            f"{data['name']} | "
-            f"{data['domain']} | "
-            f"{data['status']}"
+            f"{site.get('name', '-'):20}"
+            f"{site.get('domain', '-'):30}"
+            f"{site.get('type', '-'):12}"
+            f"{site.get('status', '-'):12}"
+            f"{str(port):8}"
         )
 
+    print()
+
+    return True
 
 def site_delete_cmd(name):
     site_dir = SITES_DIR / name
