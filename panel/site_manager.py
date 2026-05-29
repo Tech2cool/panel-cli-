@@ -8,7 +8,7 @@ import shutil
 from jinja2 import Template
 
 from panel.constants import NGINX_AVAILABLE, NGINX_ENABLED
-from panel.helpers.site import domain_exists, port_exists, validate_domain, validate_site_name
+from panel.helpers.site import domain_exists, get_site, port_exists, validate_domain, validate_site_name
 from panel.helpers.system import run_command
 from panel.logger import *
 
@@ -512,9 +512,30 @@ def site_enable_cmd(domain: str):
     info(f"{domain} enabled")
 
 
-def site_ssl_cmd(name):
+def site_ssl_cmd(identifier):
 
-    name = name.strip().lower()
+    identifier = identifier.strip().lower()
+
+    #
+    # GET SITE
+    #
+
+    site_data = get_site(identifier)
+
+    if not site_data:
+        error("Site not found")
+        return False
+
+    domain = site_data.get("domain")
+    name = site_data.get("name")
+
+    if not domain:
+        error("Missing domain")
+        return False
+
+    #
+    # SITE DIR
+    #
 
     site_dir = (SITES_DIR / name).resolve()
 
@@ -527,34 +548,15 @@ def site_ssl_cmd(name):
         return False
 
     #
-    # EXISTS
+    # SSL ALREADY ENABLED
     #
 
-    if not site_dir.exists():
-        error("Site not found")
-        return False
+    if site_data.get("ssl") is True:
+        info("SSL already enabled")
+        return True
 
     #
-    # LOAD CONFIG
-    #
-
-    config_file = site_dir / "site.json"
-
-    if not config_file.exists():
-        error("Missing site config")
-        return False
-
-    with open(config_file) as f:
-        site_data = json.load(f)
-
-    domain = site_data.get("domain")
-
-    if not domain:
-        error("Missing domain")
-        return False
-
-    #
-    # RUN CERTBOT
+    # ISSUE SSL
     #
 
     info(f"Issuing SSL for {domain}")
@@ -586,19 +588,23 @@ def site_ssl_cmd(name):
         return False
 
     #
-    # UPDATE SITE METADATA
+    # UPDATE SITE CONFIG
     #
+
+    config_file = site_dir / "site.json"
 
     site_data["ssl"] = True
 
     with open(config_file, "w") as f:
         json.dump(site_data, f, indent=4)
 
+    #
+    # SUCCESS
+    #
+
     info(f"SSL enabled for {domain}")
 
     return True
-
-
 
 
 

@@ -59,3 +59,42 @@ def port_exists(port):
             return True
 
     return False
+
+
+def get_site(identifier):
+
+    identifier = identifier.strip().lower()
+
+    if not SITES_DIR.exists():
+        return None
+
+    for site in SITES_DIR.iterdir():
+
+        config = site / "site.json"
+
+        if not config.exists():
+            continue
+
+        try:
+
+            with open(config) as f:
+                data = json.load(f)
+
+            #
+            # MATCH NAME
+            #
+
+            if data.get("name") == identifier:
+                return data
+
+            #
+            # MATCH DOMAIN
+            #
+
+            if data.get("domain") == identifier:
+                return data
+
+        except:
+            continue
+
+    return None
