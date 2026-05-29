@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 from jinja2 import Template
 
-from panel.constants import NGINX_AVAILABLE, NGINX_ENABLED
+from panel.constants import NGINX_AVAILABLE, NGINX_ENABLED, SSL_EMAIL
 from panel.helpers.site import domain_exists, get_site, is_local_target, port_exists, validate_domain, validate_proxy_url, validate_site_name
 from panel.helpers.system import run_command
 from panel.logger import *
@@ -804,7 +804,11 @@ def site_enable_cmd(identifier: str):
 
     return True
 
-def site_ssl_cmd(identifier):
+def site_ssl_cmd(identifier, force=False):
+
+    #
+    # NORMALIZE
+    #
 
     identifier = identifier.strip().lower()
 
@@ -821,30 +825,133 @@ def site_ssl_cmd(identifier):
     domain = site_data.get("domain")
     name = site_data.get("name")
 
+    #
+    # VALIDATION
+    #
+
     if not domain:
         error("Missing domain")
         return False
 
+    if not name:
+        error("Missing site name")
+        return False
+
     #
-    # SITE DIR
+    # SAFE SITE PATH
     #
 
     site_dir = (SITES_DIR / name).resolve()
-
-    #
-    # SAFE PATH
-    #
 
     if not str(site_dir).startswith(str(SITES_DIR.resolve())):
         error("Invalid site path")
         return False
 
     #
+    # SITE EXISTS
+    #
+
+    if not site_dir.exists():
+        error("Site directory missing")
+        return False
+
+    #
+    # NGINX CONFIG EXISTS
+    #
+
+    nginx_config = Path(
+        f"{NGINX_AVAILABLE}/{domain}.conf"
+    )
+
+    if not nginx_config.exists():
+        error("Nginx config missing")
+        return False
+
+    #
     # SSL ALREADY ENABLED
     #
 
-    if site_data.get("ssl") is True:
+    if site_data.get("ssl") is True and not force:
         info("SSL already enabled")
+        return True
+
+    #
+    # TEST NGINX
+    #
+
+    nginx_test = run_command([
+        "sudo",
+        "nginx",
+        "-t"
+    ])
+
+    if nginx_test.returncode != 0:
+
+        error("Invalid nginx config")
+
+        if nginx_test.stderr:
+            error(nginx_test.stderr)
+
+        return False
+
+    #
+    # RELOAD NGINX
+    #
+
+    nginx_reload = run_command([
+        "sudo",
+        "systemctl",
+        "reload",
+        "nginx"
+    ])
+
+    if nginx_reload.returncode != 0:
+
+        error("Failed to reload nginx")
+
+        if nginx_reload.stderr:
+            error(nginx_reload.stderr)
+
+        return False
+
+    #
+    # CHECK EXISTING CERTIFICATE
+    #
+
+    certbot_list = run_command([
+        "sudo",
+        "certbot",
+        "certificates"
+    ])
+
+    cert_exists = False
+
+    if certbot_list.stdout:
+
+        if f"Domains: {domain}" in certbot_list.stdout:
+            cert_exists = True
+
+    #
+    # CERT EXISTS
+    #
+
+    if cert_exists and not force:
+
+        site_data["ssl"] = True
+
+        try:
+
+            with open(site_dir / "site.json", "w") as f:
+                json.dump(site_data, f, indent=4)
+
+        except Exception as e:
+
+            error(f"Failed updating metadata: {e}")
+
+            return False
+
+        info("Existing SSL certificate detected")
+
         return True
 
     #
@@ -853,7 +960,7 @@ def site_ssl_cmd(identifier):
 
     info(f"Issuing SSL for {domain}")
 
-    result = run_command([
+    certbot_cmd = [
         "sudo",
         "certbot",
         "--nginx",
@@ -862,39 +969,101 @@ def site_ssl_cmd(identifier):
         "--non-interactive",
         "--agree-tos",
         "-m",
-        f"admin@{domain}",
+        SSL_EMAIL,
         "--redirect"
-    ])
+    ]
+
+    #
+    # FORCE RENEW
+    #
+
+    if force:
+        certbot_cmd.append("--force-renewal")
+
+    ssl_result = run_command(certbot_cmd)
 
     #
     # FAILED
     #
 
-    if result.returncode != 0:
+    if ssl_result.returncode != 0:
 
-        if result.stderr:
-            error(result.stderr)
+        if ssl_result.stderr:
+            error(ssl_result.stderr)
 
         error("SSL generation failed")
 
         return False
 
     #
-    # UPDATE SITE CONFIG
+    # FINAL NGINX TEST
     #
 
-    config_file = site_dir / "site.json"
+    nginx_test = run_command([
+        "sudo",
+        "nginx",
+        "-t"
+    ])
+
+    if nginx_test.returncode != 0:
+
+        error("SSL installed but nginx config invalid")
+
+        if nginx_test.stderr:
+            error(nginx_test.stderr)
+
+        return False
+
+    #
+    # FINAL RELOAD
+    #
+
+    nginx_reload = run_command([
+        "sudo",
+        "systemctl",
+        "reload",
+        "nginx"
+    ])
+
+    if nginx_reload.returncode != 0:
+
+        error("Failed to reload nginx")
+
+        if nginx_reload.stderr:
+            error(nginx_reload.stderr)
+
+        return False
+
+    #
+    # UPDATE METADATA
+    #
 
     site_data["ssl"] = True
+    site_data["ssl_provider"] = "letsencrypt"
+    site_data["ssl_auto_renew"] = True
+    site_data["ssl_enabled_at"] = datetime.utcnow().isoformat()
 
-    with open(config_file, "w") as f:
-        json.dump(site_data, f, indent=4)
+    #
+    # SAVE METADATA
+    #
+
+    try:
+
+        with open(site_dir / "site.json", "w") as f:
+            json.dump(site_data, f, indent=4)
+
+    except Exception as e:
+
+        error(f"Failed to save metadata: {e}")
+
+        return False
 
     #
     # SUCCESS
     #
 
-    info(f"SSL enabled for {domain}")
+    info(f"SSL enabled successfully for {domain}")
 
     return True
+
 
